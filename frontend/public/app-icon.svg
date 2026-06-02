@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1565C0"/>
+  <rect x="64" y="96" width="384" height="320" rx="32" fill="#0D47A1"/>
+  <path d="M140 176h52l64 88 64-88h52v160h-48v-88l-68 88-68-88v88h-48z" fill="#ffffff"/>
+  <text x="256" y="390" font-size="34" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif">MD</text>
+</svg>
