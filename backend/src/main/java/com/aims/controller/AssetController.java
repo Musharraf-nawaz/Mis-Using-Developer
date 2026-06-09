@@ -21,7 +21,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import com.aims.entity.enums.MediaType;
 
 import java.util.List;
 import java.util.Map;
@@ -81,7 +80,7 @@ public class AssetController {
     public ResponseEntity<ApiResponse<AssetResponse>> uploadMedia(
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file,
-            @RequestParam("type") MediaType type) {
+            @RequestParam("type") com.aims.entity.enums.MediaType type) {
         return ResponseEntity.ok(ApiResponse.success(assetService.uploadMedia(id, file, type)));
     }
 
