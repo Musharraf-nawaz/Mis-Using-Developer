@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { Grid, Typography, Card, CardContent, Box, List, ListItem, ListItemText, Chip } from '@mui/material';
+import { lazy, Suspense } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { Grid, Typography, Card, CardContent, Box, List, ListItem, ListItemText, Chip, Skeleton } from '@mui/material';
 import {
   Inventory,
   CheckCircle,
@@ -11,39 +12,34 @@ import {
   Done,
   Cancel,
 } from '@mui/icons-material';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { dashboardApi } from '../api/services';
 import StatCard from '../components/common/StatCard';
+import DashboardSkeleton from '../components/common/DashboardSkeleton';
 
-const COLORS = ['#1565C0', '#00838F', '#2E7D32', '#F57C00', '#C62828'];
+const DashboardCharts = lazy(() => import('../components/dashboard/DashboardCharts'));
 
 export default function DashboardPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => dashboardApi.get(),
+    placeholderData: keepPreviousData,
   });
 
   const dashboard = data?.data?.data;
 
-  if (isLoading || !dashboard) {
-    return <Typography>Loading dashboard...</Typography>;
+  if (isLoading && !dashboard) {
+    return <DashboardSkeleton />;
+  }
+
+  if (!dashboard) {
+    return <Typography>Unable to load dashboard.</Typography>;
   }
 
   const { assetStats, interviewStats } = dashboard;
   const todayInterviews = dashboard.upcomingInterviews.filter((item) => item.today);
 
-  const pieData = dashboard.assetStatusDistribution.map((d) => ({
-    name: d.status,
-    value: Number(d.count),
-  }));
-
-  const barData = dashboard.assetAllocationTrends.map((d) => ({
-    month: d.month,
-    assignments: Number(d.count),
-  }));
-
   return (
-    <Box>
+    <Box sx={{ opacity: isFetching ? 0.85 : 1, transition: 'opacity 0.2s' }}>
       <Typography variant="h5" fontWeight={700} gutterBottom>
         Dashboard Overview
       </Typography>
@@ -51,13 +47,7 @@ export default function DashboardPage() {
         Real-time insights across assets and interviews
       </Typography>
 
-      <Card
-        sx={{
-          mb: 3,
-          border: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
+      <Card sx={{ mb: 3, border: '1px solid', borderColor: 'divider' }}>
         <CardContent>
           <Typography variant="subtitle1" fontWeight={700} gutterBottom>
             Interview Details
@@ -133,109 +123,23 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                Asset Status Distribution
-              </Typography>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                Asset Allocation Trends
-              </Typography>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={barData}>
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="assignments" fill="#1565C0" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                Recent Assignments
-              </Typography>
-              <List dense>
-                {dashboard.recentAssignments.map((item) => (
-                  <ListItem key={item.id} disablePadding sx={{ py: 0.5 }}>
-                    <ListItemText primary={item.title} secondary={item.description} />
-                  </ListItem>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                Upcoming Interviews
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                {todayInterviews.length} interview(s) today are highlighted
-              </Typography>
-              <List dense>
-                {dashboard.upcomingInterviews.map((item) => (
-                  <ListItem
-                    key={item.id}
-                    disablePadding
-                    sx={{
-                      py: 0.5,
-                      px: 0.75,
-                      borderRadius: 1,
-                      bgcolor: item.today ? 'warning.light' : 'transparent',
-                    }}
-                  >
-                    <ListItemText
-                      primary={item.title}
-                      secondary={item.description}
-                    />
-                    {item.today && <Chip label="Today" size="small" color="warning" variant="filled" />}
-                  </ListItem>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                Recent Returns
-              </Typography>
-              <List dense>
-                {dashboard.recentReturns.map((item) => (
-                  <ListItem key={item.id} disablePadding sx={{ py: 0.5 }}>
-                    <ListItemText primary={item.title} secondary={item.description} />
-                  </ListItem>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <Suspense
+        fallback={
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={4}><Skeleton variant="rounded" height={300} /></Grid>
+            <Grid item xs={12} md={8}><Skeleton variant="rounded" height={300} /></Grid>
+          </Grid>
+        }
+      >
+        <DashboardCharts
+          assetStatusDistribution={dashboard.assetStatusDistribution}
+          assetAllocationTrends={dashboard.assetAllocationTrends}
+          recentAssignments={dashboard.recentAssignments}
+          recentReturns={dashboard.recentReturns}
+          upcomingInterviews={dashboard.upcomingInterviews}
+          todayInterviewCount={todayInterviews.length}
+        />
+      </Suspense>
     </Box>
   );
 }

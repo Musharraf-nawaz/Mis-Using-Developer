@@ -9,6 +9,7 @@ import {
   TablePagination,
   Skeleton,
   Box,
+  LinearProgress,
 } from '@mui/material';
 
 export interface Column<T> {
@@ -22,6 +23,7 @@ interface DataTableProps<T> {
   columns: Column<T>[];
   rows: T[];
   loading?: boolean;
+  fetching?: boolean;
   page: number;
   size: number;
   total: number;
@@ -34,6 +36,7 @@ export default function DataTable<T>({
   columns,
   rows,
   loading,
+  fetching,
   page,
   size,
   total,
@@ -41,7 +44,7 @@ export default function DataTable<T>({
   onSizeChange,
   getRowId,
 }: DataTableProps<T>) {
-  if (loading) {
+  if (loading && rows.length === 0) {
     return (
       <Box>
         {[1, 2, 3, 4, 5].map((i) => (
@@ -52,7 +55,8 @@ export default function DataTable<T>({
   }
 
   return (
-    <Paper variant="outlined">
+    <Paper variant="outlined" sx={{ position: 'relative', opacity: fetching ? 0.72 : 1, transition: 'opacity 0.2s' }}>
+      {fetching && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0 }} />}
       <TableContainer>
         <Table size="small">
           <TableHead>

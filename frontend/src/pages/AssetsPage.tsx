@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   Box,
   Typography,
@@ -23,7 +23,9 @@ import { toast } from 'react-toastify';
 import { assetApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import DataTable, { Column } from '../components/common/DataTable';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import type { Asset, AssetStatus } from '../types';
+import type { ApiResponse, PageResponse } from '../types';
 
 const STATUS_COLORS: Record<AssetStatus, 'success' | 'warning' | 'info' | 'error' | 'default'> = {
   AVAILABLE: 'success',
@@ -39,15 +41,17 @@ export default function AssetsPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
   const [statusFilter, setStatusFilter] = useState('');
   const [open, setOpen] = useState(false);
   const [editAsset, setEditAsset] = useState<Asset | null>(null);
   const { register, handleSubmit, reset, setValue } = useForm<Partial<Asset>>();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['assets', page, size, search, statusFilter],
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['assets', page, size, debouncedSearch, statusFilter],
     queryFn: () =>
-      assetApi.getAll({ page, size, search: search || undefined, status: statusFilter || undefined }),
+      assetApi.getAll({ page, size, search: debouncedSearch || undefined, status: statusFilter || undefined }),
+    placeholderData: keepPreviousData,
   });
 
   const assets = data?.data?.data?.content ?? [];
@@ -77,11 +81,33 @@ export default function AssetsPage() {
   const offboardMutation = useMutation({
     mutationFn: ({ id, offboarded }: { id: number; offboarded: boolean }) =>
       assetApi.updateOffboarded(id, offboarded),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['assets'] });
-      toast.success('Offboard status updated');
+    onMutate: async ({ id, offboarded }) => {
+      await queryClient.cancelQueries({ queryKey: ['assets'] });
+      type AssetsQueryData = { data: ApiResponse<PageResponse<Asset>> };
+      const snapshots = queryClient.getQueriesData<AssetsQueryData>({ queryKey: ['assets'] });
+      snapshots.forEach(([key, cached]) => {
+        if (!cached?.data?.data?.content) return;
+        queryClient.setQueryData(key, {
+          ...cached,
+          data: {
+            ...cached.data,
+            data: {
+              ...cached.data.data,
+              content: cached.data.data.content.map((asset) =>
+                asset.id === id ? { ...asset, projectOffboarded: offboarded } : asset
+              ),
+            },
+          },
+        });
+      });
+      return { snapshots };
     },
-    onError: () => toast.error('Failed to update offboard status'),
+    onSuccess: () => toast.success('Offboard status updated'),
+    onError: (_err, _vars, context) => {
+      context?.snapshots?.forEach(([key, cached]) => queryClient.setQueryData(key, cached));
+      toast.error('Failed to update offboard status');
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['assets'] }),
   });
 
   const handleExport = async (format: 'csv' | 'excel') => {
@@ -113,6 +139,7 @@ export default function AssetsPage() {
           <Switch
             size="small"
             checked={!!row.projectOffboarded}
+            disabled={offboardMutation.isPending}
             onChange={(e) =>
               offboardMutation.mutate({ id: row.id, offboarded: e.target.checked })
             }
@@ -200,6 +227,7 @@ export default function AssetsPage() {
         columns={columns}
         rows={assets}
         loading={isLoading}
+        fetching={isFetching}
         page={page}
         size={size}
         total={total}
@@ -251,7 +279,9 @@ export default function AssetsPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained">Save</Button>
+            <Button type="submit" variant="contained" disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
           </DialogActions>
         </form>
       </Dialog>

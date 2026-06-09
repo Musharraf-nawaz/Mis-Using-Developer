@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   Box,
   Typography,
@@ -22,7 +22,8 @@ import { toast } from 'react-toastify';
 import { interviewApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import DataTable, { Column } from '../components/common/DataTable';
-import type { Interview, InterviewStatus } from '../types';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import type { ApiResponse, Interview, InterviewStatus, PageResponse } from '../types';
 
 const STATUS_COLORS: Record<InterviewStatus, 'primary' | 'success' | 'error' | 'warning'> = {
   SCHEDULED: 'primary',
@@ -37,6 +38,7 @@ export default function InterviewsPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
   const [open, setOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [selectedInterviewId, setSelectedInterviewId] = useState<number | null>(null);
@@ -48,9 +50,10 @@ export default function InterviewsPage() {
     reset: resetReschedule,
   } = useForm<{ interviewDate: string; interviewTime: string }>();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['interviews', page, size, search],
-    queryFn: () => interviewApi.getAll({ page, size, search: search || undefined }),
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['interviews', page, size, debouncedSearch],
+    queryFn: () => interviewApi.getAll({ page, size, search: debouncedSearch || undefined }),
+    placeholderData: keepPreviousData,
   });
 
   const interviews = data?.data?.data?.content ?? [];
@@ -69,10 +72,33 @@ export default function InterviewsPage() {
 
   const cancelMutation = useMutation({
     mutationFn: (id: number) => interviewApi.cancel(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['interviews'] });
-      toast.success('Interview cancelled');
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['interviews'] });
+      type InterviewsQueryData = { data: ApiResponse<PageResponse<Interview>> };
+      const snapshots = queryClient.getQueriesData<InterviewsQueryData>({ queryKey: ['interviews'] });
+      snapshots.forEach(([key, cached]) => {
+        if (!cached?.data?.data?.content) return;
+        queryClient.setQueryData(key, {
+          ...cached,
+          data: {
+            ...cached.data,
+            data: {
+              ...cached.data.data,
+              content: cached.data.data.content.map((item) =>
+                item.id === id ? { ...item, interviewStatus: 'CANCELLED' as const } : item
+              ),
+            },
+          },
+        });
+      });
+      return { snapshots };
     },
+    onSuccess: () => toast.success('Interview cancelled'),
+    onError: (_err, _id, context) => {
+      context?.snapshots?.forEach(([key, cached]) => queryClient.setQueryData(key, cached));
+      toast.error('Cancel failed');
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['interviews'] }),
   });
 
   const rescheduleMutation = useMutation({
@@ -196,7 +222,7 @@ export default function InterviewsPage() {
       <TextField size="small" placeholder="Search candidates..." value={search}
         onChange={(e) => setSearch(e.target.value)} sx={{ mb: 2, width: 300 }} />
 
-      <DataTable columns={columns} rows={interviews} loading={isLoading} page={page} size={size}
+      <DataTable columns={columns} rows={interviews} loading={isLoading} fetching={isFetching} page={page} size={size}
         total={total} onPageChange={setPage} onSizeChange={setSize} getRowId={(r) => r.id} />
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
@@ -247,7 +273,9 @@ export default function InterviewsPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained">Save</Button>
+            <Button type="submit" variant="contained" disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
           </DialogActions>
         </form>
       </Dialog>
@@ -288,7 +316,9 @@ export default function InterviewsPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setRescheduleOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained">Update</Button>
+            <Button type="submit" variant="contained" disabled={rescheduleMutation.isPending}>
+              {rescheduleMutation.isPending ? 'Updating...' : 'Update'}
+            </Button>
           </DialogActions>
         </form>
       </Dialog>

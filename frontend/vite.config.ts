@@ -49,4 +49,14 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          recharts: ['recharts'],
+          mui: ['@mui/material', '@mui/icons-material'],
+        },
+      },
+    },
+  },
 });

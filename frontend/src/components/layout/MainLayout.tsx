@@ -35,10 +35,10 @@ import {
   Logout,
   Person,
 } from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
-import { notificationApi } from '../../api/services';
+import { assetApi, dashboardApi, interviewApi, notificationApi } from '../../api/services';
 import type { Role } from '../../types';
 
 const DRAWER_WIDTH = 260;
@@ -70,12 +70,31 @@ export default function MainLayout() {
   const { mode, toggleMode } = useThemeMode();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-unread'],
     queryFn: () => notificationApi.getUnreadCount(),
-    refetchInterval: 60000,
+    refetchInterval: document.hidden ? false : 120000,
   });
+
+  const prefetchRoute = (path: string) => {
+    if (path === '/dashboard') {
+      queryClient.prefetchQuery({ queryKey: ['dashboard'], queryFn: () => dashboardApi.get() });
+    }
+    if (path === '/assets') {
+      queryClient.prefetchQuery({
+        queryKey: ['assets', 0, 10, '', ''],
+        queryFn: () => assetApi.getAll({ page: 0, size: 10 }),
+      });
+    }
+    if (path === '/interviews') {
+      queryClient.prefetchQuery({
+        queryKey: ['interviews', 0, 10, ''],
+        queryFn: () => interviewApi.getAll({ page: 0, size: 10 }),
+      });
+    }
+  };
 
   const unreadCount = unreadData?.data?.data?.count ?? 0;
 
@@ -98,6 +117,7 @@ export default function MainLayout() {
           <ListItemButton
             key={item.path}
             selected={location.pathname === item.path}
+            onMouseEnter={() => prefetchRoute(item.path)}
             onClick={() => {
               navigate(item.path);
               if (isMobile) setMobileOpen(false);
