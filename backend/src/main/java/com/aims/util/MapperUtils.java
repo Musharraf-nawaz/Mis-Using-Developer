@@ -110,6 +110,7 @@ public final class MapperUtils {
                 .candidatePhone(interview.getCandidatePhone())
                 .candidateProfile(interview.getCandidateProfile())
                 .clientName(interview.getClientName())
+                .midClientName(interview.getMidClientName())
                 .companyToRepresent(interview.getCompanyToRepresent())
                 .interviewLink(interview.getInterviewLink())
                 .candidateCvUrl(interview.getCandidateCvUrl())

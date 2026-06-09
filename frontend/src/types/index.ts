@@ -109,6 +109,7 @@ export interface Interview {
   candidatePhone: string;
   candidateProfile: string;
   clientName: string;
+  midClientName: string;
   companyToRepresent: string;
   interviewLink: string;
   candidateCvUrl: string;

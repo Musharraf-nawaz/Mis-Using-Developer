@@ -20,7 +20,7 @@ import { Add, Edit, Cancel, CheckCircle, Timeline } from '@mui/icons-material';
 import InterviewStepper from '../components/interviews/InterviewStepper';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { interviewApi } from '../api/services';
+import { interviewApi, fileUrl } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import DataTable, { Column } from '../components/common/DataTable';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
@@ -46,6 +46,7 @@ export default function InterviewsPage() {
   const [stepperInterview, setStepperInterview] = useState<Interview | null>(null);
   const [selectedInterviewId, setSelectedInterviewId] = useState<number | null>(null);
   const [editInterview, setEditInterview] = useState<Interview | null>(null);
+  const [cvFile, setCvFile] = useState<File | null>(null);
   const { register, handleSubmit, reset, setValue } = useForm<Partial<Interview>>();
   const {
     register: registerReschedule,
@@ -63,14 +64,25 @@ export default function InterviewsPage() {
   const total = data?.data?.data?.totalElements ?? 0;
 
   const saveMutation = useMutation({
-    mutationFn: (form: Partial<Interview>) =>
-      editInterview ? interviewApi.update(editInterview.id, form) : interviewApi.create(form),
+    mutationFn: async (form: Partial<Interview>) => {
+      const res = editInterview
+        ? await interviewApi.update(editInterview.id, form)
+        : await interviewApi.create(form);
+      const interviewId = res.data.data.id;
+      if (cvFile) {
+        await interviewApi.uploadCv(interviewId, cvFile);
+      }
+      return res;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['interviews'] });
       toast.success(editInterview ? 'Interview updated' : 'Interview scheduled');
       setOpen(false);
+      setEditInterview(null);
+      setCvFile(null);
       reset();
     },
+    onError: () => toast.error('Failed to save interview'),
   });
 
   const cancelMutation = useMutation({
@@ -128,6 +140,7 @@ export default function InterviewsPage() {
   const columns: Column<Interview>[] = [
     { id: 'candidateName', label: 'Candidate', minWidth: 140 },
     { id: 'clientName', label: 'Client' },
+    { id: 'midClientName', label: 'Mid Client' },
     { id: 'candidateProfile', label: 'Profile' },
     { id: 'experience', label: 'Experience' },
     { id: 'interviewerName', label: 'Interviewer' },
@@ -150,7 +163,7 @@ export default function InterviewsPage() {
               <Timeline fontSize="small" />
             </IconButton>
             {hasRole('ADMIN') && (
-              <IconButton size="small" onClick={() => { setEditInterview(row); Object.entries(row).forEach(([k,v]) => setValue(k as keyof Interview, v)); setOpen(true); }}>
+              <IconButton size="small" onClick={() => { setEditInterview(row); setCvFile(null); Object.entries(row).forEach(([k,v]) => setValue(k as keyof Interview, v)); setOpen(true); }}>
                 <Edit fontSize="small" />
               </IconButton>
             )}
@@ -222,7 +235,7 @@ export default function InterviewsPage() {
           <Typography variant="body2" color="text.secondary">Schedule and track candidate interviews</Typography>
         </Box>
         {hasRole('ADMIN') && (
-          <Button startIcon={<Add />} variant="contained" onClick={() => { setEditInterview(null); reset(); setOpen(true); }}>
+          <Button startIcon={<Add />} variant="contained" onClick={() => { setEditInterview(null); setCvFile(null); reset(); setOpen(true); }}>
             Schedule Interview
           </Button>
         )}
@@ -254,6 +267,9 @@ export default function InterviewsPage() {
                 <TextField fullWidth label="Client Name" {...register('clientName')} />
               </Grid>
               <Grid item xs={12} sm={6}>
+                <TextField fullWidth label="Mid Client Name" {...register('midClientName')} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
                 <TextField fullWidth label="Company To Represent" {...register('companyToRepresent')} />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -276,6 +292,31 @@ export default function InterviewsPage() {
                 <TextField fullWidth label="Time" type="time" InputLabelProps={{ shrink: true }}
                   {...register('interviewTime', { required: true })} />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <Button variant="outlined" component="label" fullWidth sx={{ height: 56 }}>
+                  {cvFile ? cvFile.name : 'Upload Candidate CV (PDF/Image)'}
+                  <input
+                    type="file"
+                    hidden
+                    accept=".pdf,image/*"
+                    onChange={(e) => setCvFile(e.target.files?.[0] || null)}
+                  />
+                </Button>
+              </Grid>
+              {editInterview?.candidateCvUrl && (
+                <Grid item xs={12} sm={6}>
+                  <Button
+                    variant="text"
+                    fullWidth
+                    sx={{ height: 56 }}
+                    href={fileUrl(editInterview.candidateCvUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View Current CV
+                  </Button>
+                </Grid>
+              )}
               <Grid item xs={12} sm={6}>
                 <TextField fullWidth select label="Round" defaultValue="SCREENING" {...register('interviewRound')}>
                   {[

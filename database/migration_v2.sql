@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS asset_media (
 
 -- Interview enhancements
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS client_name VARCHAR(150);
+ALTER TABLE interviews ADD COLUMN IF NOT EXISTS mid_client_name VARCHAR(150);
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS company_to_represent VARCHAR(150);
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS interview_link VARCHAR(500);
 ALTER TABLE interviews ADD COLUMN IF NOT EXISTS candidate_cv_url VARCHAR(500);

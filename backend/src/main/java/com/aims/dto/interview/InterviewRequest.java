@@ -21,6 +21,7 @@ public class InterviewRequest {
     private String candidatePhone;
     private String candidateProfile;
     private String clientName;
+    private String midClientName;
     private String companyToRepresent;
     private String interviewLink;
     private String candidateCvUrl;

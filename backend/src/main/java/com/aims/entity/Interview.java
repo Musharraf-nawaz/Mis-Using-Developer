@@ -41,6 +41,9 @@ public class Interview {
     @Column(name = "client_name", length = 150)
     private String clientName;
 
+    @Column(name = "mid_client_name", length = 150)
+    private String midClientName;
+
     @Column(name = "company_to_represent", length = 150)
     private String companyToRepresent;
 

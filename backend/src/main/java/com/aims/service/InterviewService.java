@@ -161,6 +161,7 @@ public class InterviewService {
         interview.setCandidatePhone(request.getCandidatePhone());
         interview.setCandidateProfile(request.getCandidateProfile());
         interview.setClientName(request.getClientName());
+        interview.setMidClientName(request.getMidClientName());
         interview.setCompanyToRepresent(request.getCompanyToRepresent());
         interview.setInterviewLink(request.getInterviewLink());
         if (request.getCandidateCvUrl() != null) interview.setCandidateCvUrl(request.getCandidateCvUrl());

@@ -96,6 +96,7 @@ export default function ProjectsPage() {
   const columns: Column<Project>[] = [
     { id: 'projectName', label: 'Project Name', minWidth: 160 },
     { id: 'clientName', label: 'Client', minWidth: 120 },
+    { id: 'midClientName', label: 'Mid Client', minWidth: 120 },
     { id: 'candidateWorkingCount', label: 'Working', minWidth: 80 },
     { id: 'onboardedCandidateCount', label: 'Onboarded', minWidth: 90 },
     {
