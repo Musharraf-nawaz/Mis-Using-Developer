@@ -3,10 +3,13 @@ package com.aims.controller;
 import com.aims.dto.common.ApiResponse;
 import com.aims.dto.common.PageResponse;
 import com.aims.dto.interview.InterviewRequest;
+import com.aims.dto.interview.InterviewRoundRequest;
+import com.aims.dto.interview.InterviewRoundResponse;
 import com.aims.dto.interview.RescheduleInterviewRequest;
 import com.aims.dto.interview.InterviewResponse;
 import com.aims.entity.enums.InterviewStatus;
 import com.aims.service.ExportService;
+import com.aims.service.InterviewRoundService;
 import com.aims.service.InterviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,6 +22,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -31,6 +35,7 @@ import java.util.Map;
 public class InterviewController {
 
     private final InterviewService interviewService;
+    private final InterviewRoundService interviewRoundService;
     private final ExportService exportService;
 
     @GetMapping
@@ -92,6 +97,32 @@ public class InterviewController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         interviewService.delete(id);
         return ResponseEntity.ok(ApiResponse.success("Interview deleted", null));
+    }
+
+    @GetMapping("/{id}/rounds")
+    public ResponseEntity<ApiResponse<List<InterviewRoundResponse>>> getRounds(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(interviewRoundService.getRounds(id)));
+    }
+
+    @PostMapping("/{id}/rounds/init")
+    public ResponseEntity<ApiResponse<List<InterviewRoundResponse>>> initRounds(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(interviewRoundService.initializeRounds(id)));
+    }
+
+    @PostMapping("/{id}/cv")
+    public ResponseEntity<ApiResponse<InterviewResponse>> uploadCv(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(ApiResponse.success(interviewService.uploadCv(id, file)));
+    }
+
+    @PatchMapping("/{id}/rounds/{roundNumber}")
+    public ResponseEntity<ApiResponse<InterviewRoundResponse>> updateRound(
+            @PathVariable Long id,
+            @PathVariable Integer roundNumber,
+            @RequestBody InterviewRoundRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                interviewRoundService.updateRound(id, roundNumber, request)));
     }
 
     @GetMapping("/export/csv")

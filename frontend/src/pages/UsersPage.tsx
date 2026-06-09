@@ -114,8 +114,8 @@ export default function UsersPage() {
               <Grid item xs={12}><TextField fullWidth label="Email" {...register('email', { required: true })} /></Grid>
               {!editUser && <Grid item xs={12}><TextField fullWidth label="Password" type="password" {...register('password')} /></Grid>}
               <Grid item xs={12}>
-                <TextField fullWidth select label="Role" defaultValue="EMPLOYEE" {...register('role')}>
-                  {(['ADMIN', 'HR', 'EMPLOYEE'] as Role[]).map((r) => (
+                <TextField fullWidth select label="Role" defaultValue="USER" {...register('role')}>
+                  {(['ADMIN', 'USER'] as Role[]).map((r) => (
                     <MenuItem key={r} value={r}>{r}</MenuItem>
                   ))}
                 </TextField>

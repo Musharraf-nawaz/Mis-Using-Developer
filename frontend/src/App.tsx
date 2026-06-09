@@ -7,6 +7,7 @@ import type { Role } from './types';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
 const AssetsPage = lazy(() => import('./pages/AssetsPage'));
 const AssetAssignmentPage = lazy(() => import('./pages/AssetAssignmentPage'));
 const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
@@ -38,11 +39,26 @@ function App() {
           }
         >
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/assets" element={<AssetsPage />} />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute roles={['ADMIN', 'USER']}>
+                <ProjectsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/assets"
+            element={
+              <ProtectedRoute roles={['ADMIN', 'USER']}>
+                <AssetsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/assets/assign"
             element={
-              <ProtectedRoute roles={['ADMIN', 'HR']}>
+              <ProtectedRoute roles={['ADMIN']}>
                 <AssetAssignmentPage />
               </ProtectedRoute>
             }
@@ -50,7 +66,7 @@ function App() {
           <Route
             path="/interviews"
             element={
-              <ProtectedRoute roles={['ADMIN', 'HR', 'EMPLOYEE']}>
+              <ProtectedRoute roles={['ADMIN', 'USER']}>
                 <InterviewsPage />
               </ProtectedRoute>
             }
@@ -58,7 +74,7 @@ function App() {
           <Route
             path="/calendar"
             element={
-              <ProtectedRoute roles={['ADMIN', 'HR', 'EMPLOYEE']}>
+              <ProtectedRoute roles={['ADMIN', 'USER']}>
                 <CalendarPage />
               </ProtectedRoute>
             }
@@ -66,7 +82,7 @@ function App() {
           <Route
             path="/reports"
             element={
-              <ProtectedRoute roles={['ADMIN', 'HR']}>
+              <ProtectedRoute roles={['ADMIN']}>
                 <ReportsPage />
               </ProtectedRoute>
             }

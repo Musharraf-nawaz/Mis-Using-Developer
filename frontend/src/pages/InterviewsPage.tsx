@@ -16,7 +16,8 @@ import {
   Switch,
   FormControlLabel,
 } from '@mui/material';
-import { Add, Edit, Cancel, CheckCircle } from '@mui/icons-material';
+import { Add, Edit, Cancel, CheckCircle, Timeline } from '@mui/icons-material';
+import InterviewStepper from '../components/interviews/InterviewStepper';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { interviewApi } from '../api/services';
@@ -41,6 +42,8 @@ export default function InterviewsPage() {
   const debouncedSearch = useDebouncedValue(search);
   const [open, setOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [stepperOpen, setStepperOpen] = useState(false);
+  const [stepperInterview, setStepperInterview] = useState<Interview | null>(null);
   const [selectedInterviewId, setSelectedInterviewId] = useState<number | null>(null);
   const [editInterview, setEditInterview] = useState<Interview | null>(null);
   const { register, handleSubmit, reset, setValue } = useForm<Partial<Interview>>();
@@ -124,7 +127,9 @@ export default function InterviewsPage() {
 
   const columns: Column<Interview>[] = [
     { id: 'candidateName', label: 'Candidate', minWidth: 140 },
+    { id: 'clientName', label: 'Client' },
     { id: 'candidateProfile', label: 'Profile' },
+    { id: 'experience', label: 'Experience' },
     { id: 'interviewerName', label: 'Interviewer' },
     { id: 'interviewDate', label: 'Date' },
     { id: 'interviewTime', label: 'Time' },
@@ -139,13 +144,17 @@ export default function InterviewsPage() {
     {
       id: 'actions',
       label: 'Actions',
-      render: (row) =>
-        hasRole('ADMIN', 'HR') ? (
+      render: (row) => (
           <Box>
-            <IconButton size="small" onClick={() => { setEditInterview(row); Object.entries(row).forEach(([k,v]) => setValue(k as keyof Interview, v)); setOpen(true); }}>
-              <Edit fontSize="small" />
+            <IconButton size="small" onClick={() => { setStepperInterview(row); setStepperOpen(true); }} title="View rounds">
+              <Timeline fontSize="small" />
             </IconButton>
-            {row.interviewStatus === 'SCHEDULED' && (
+            {hasRole('ADMIN') && (
+              <IconButton size="small" onClick={() => { setEditInterview(row); Object.entries(row).forEach(([k,v]) => setValue(k as keyof Interview, v)); setOpen(true); }}>
+                <Edit fontSize="small" />
+              </IconButton>
+            )}
+            {hasRole('ADMIN') && row.interviewStatus === 'SCHEDULED' && (
               <>
                 <IconButton size="small" color="success" onClick={() => completeMutation.mutate(row.id)}>
                   <CheckCircle fontSize="small" />
@@ -156,13 +165,13 @@ export default function InterviewsPage() {
               </>
             )}
           </Box>
-        ) : null,
+        ),
     },
     {
       id: 'cancelSwitch',
       label: 'Cancelled',
       render: (row) =>
-        hasRole('ADMIN', 'HR') ? (
+        hasRole('ADMIN') ? (
           <FormControlLabel
             sx={{ m: 0 }}
             control={
@@ -184,7 +193,7 @@ export default function InterviewsPage() {
       id: 'rescheduleSwitch',
       label: 'Rescheduled',
       render: (row) =>
-        hasRole('ADMIN', 'HR') ? (
+        hasRole('ADMIN') ? (
           <FormControlLabel
             sx={{ m: 0 }}
             control={
@@ -212,7 +221,7 @@ export default function InterviewsPage() {
           <Typography variant="h5" fontWeight={700}>Interview Management</Typography>
           <Typography variant="body2" color="text.secondary">Schedule and track candidate interviews</Typography>
         </Box>
-        {hasRole('ADMIN', 'HR') && (
+        {hasRole('ADMIN') && (
           <Button startIcon={<Add />} variant="contained" onClick={() => { setEditInterview(null); reset(); setOpen(true); }}>
             Schedule Interview
           </Button>
@@ -242,10 +251,22 @@ export default function InterviewsPage() {
                 <TextField fullWidth label="Interview Candidate Name" {...register('candidateName')} />
               </Grid>
               <Grid item xs={12} sm={6}>
+                <TextField fullWidth label="Client Name" {...register('clientName')} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth label="Company To Represent" {...register('companyToRepresent')} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
                 <TextField fullWidth label="Candidate Profile" {...register('candidateProfile')} />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField fullWidth label="Interview Profile" {...register('interviewerName')} />
+                <TextField fullWidth label="Candidate Experience" {...register('experience')} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth label="Interview Link" {...register('interviewLink')} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth label="Interviewer" {...register('interviewerName')} />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField fullWidth label="Date" type="date" InputLabelProps={{ shrink: true }}
@@ -321,6 +342,13 @@ export default function InterviewsPage() {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      <Dialog open={stepperOpen} onClose={() => setStepperOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Interview Progression</DialogTitle>
+        <DialogContent>
+          {stepperInterview && <InterviewStepper interview={stepperInterview} onClose={() => setStepperOpen(false)} />}
+        </DialogContent>
       </Dialog>
     </Box>
   );

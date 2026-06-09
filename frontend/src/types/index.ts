@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'HR' | 'EMPLOYEE';
+export type Role = 'ADMIN' | 'USER';
 export type AssetStatus = 'AVAILABLE' | 'ASSIGNED' | 'RETURNED' | 'DAMAGED' | 'LOST';
 export type InterviewStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'RESCHEDULED';
 export type InterviewMode = 'ONLINE' | 'OFFLINE';
@@ -9,6 +9,10 @@ export type InterviewRound =
   | 'THIRD_ROUND'
   | 'HR'
   | 'FINAL_ROUND';
+export type RoundStatus = 'SCHEDULED' | 'PASSED' | 'FAILED' | 'CANCELLED';
+export type FinalInterviewStatus = 'SELECTED' | 'REJECTED' | 'ON_HOLD';
+export type ProjectStatus = 'ACTIVE' | 'COMPLETED' | 'ON_HOLD' | 'CANCELLED';
+export type MediaType = 'PHOTO' | 'VIDEO';
 export type UserStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface ApiResponse<T> {
@@ -49,6 +53,14 @@ export interface User {
   createdAt: string;
 }
 
+export interface AssetMedia {
+  id: number;
+  mediaType: MediaType;
+  fileUrl: string;
+  fileName: string;
+  uploadedAt: string;
+}
+
 export interface Asset {
   id: number;
   companyName: string;
@@ -67,10 +79,27 @@ export interface Asset {
   returnDate: string;
   projectOffboarded: boolean;
   status: AssetStatus;
+  warrantyExpiryDate: string;
+  vendorName: string;
+  photoUrl: string;
+  videoUrl: string;
+  media: AssetMedia[];
   condition: string;
   remarks: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InterviewRoundData {
+  id: number;
+  roundNumber: number;
+  interviewLink: string;
+  interviewDate: string;
+  interviewTime: string;
+  companyToRepresent: string;
+  interviewer: string;
+  status: RoundStatus;
+  available: boolean;
 }
 
 export interface Interview {
@@ -79,6 +108,11 @@ export interface Interview {
   candidateEmail: string;
   candidatePhone: string;
   candidateProfile: string;
+  clientName: string;
+  companyToRepresent: string;
+  interviewLink: string;
+  candidateCvUrl: string;
+  finalStatus: FinalInterviewStatus;
   skills: string;
   experience: string;
   interviewerName: string;
@@ -90,7 +124,24 @@ export interface Interview {
   interviewStatus: InterviewStatus;
   feedback: string;
   notes: string;
+  rounds: InterviewRoundData[];
   createdAt: string;
+}
+
+export interface Project {
+  id: number;
+  projectName: string;
+  clientName: string;
+  midClientName: string;
+  candidateWorkingCount: number;
+  interviewCandidateCount: number;
+  onboardedCandidateCount: number;
+  startDate: string;
+  endDate: string;
+  budget: number | null;
+  status: ProjectStatus;
+  remarks: string;
+  assignedUserIds: number[];
 }
 
 export interface Notification {
@@ -98,11 +149,14 @@ export interface Notification {
   title: string;
   message: string;
   type: string;
+  entityType?: string;
+  entityId?: number;
   read: boolean;
   createdAt: string;
 }
 
 export interface DashboardData {
+  admin: boolean;
   assetStats: {
     totalAssets: number;
     availableAssets: number;
@@ -115,7 +169,40 @@ export interface DashboardData {
     upcomingInterviews: number;
     completedInterviews: number;
     cancelledInterviews: number;
+    scheduledInterviews: number;
   };
+  projectStats?: {
+    totalProjects: number;
+    activeProjects: number;
+    totalBudget: number;
+    workingCandidates: number;
+    interviewCandidates: number;
+    onboardedCandidates: number;
+  };
+  userStats?: {
+    assignedProjects: number;
+    workingCandidates: number;
+    onboardedCandidates: number;
+    assignedAssets: number;
+    upcomingInterviews: number;
+  };
+  assignedProjects: {
+    id: number;
+    projectName: string;
+    candidateWorkingCount: number;
+    onboardedCandidateCount: number;
+    status: ProjectStatus;
+    remarks: string;
+  }[];
+  assignedAssets: {
+    id: number;
+    assetName: string;
+    serialNumber: string;
+    assignedDate: string;
+    status: AssetStatus;
+    photoUrl: string;
+    videoUrl: string;
+  }[];
   assetStatusDistribution: { status: string; count: number }[];
   monthlyInterviewStats: { month: string; status: string; count: number }[];
   assetAllocationTrends: { month: string; count: number }[];

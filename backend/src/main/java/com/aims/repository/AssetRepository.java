@@ -36,6 +36,8 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
 
     List<Asset> findByAssignedToId(Long userId);
 
+    long countByAssignedToIdAndStatus(Long assignedToId, AssetStatus status);
+
     long countByStatus(AssetStatus status);
 
     @Query("SELECT a.status as status, COUNT(a) as count FROM Asset a GROUP BY a.status")

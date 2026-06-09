@@ -1,5 +1,6 @@
 package com.aims.dto.interview;
 
+import com.aims.entity.enums.FinalInterviewStatus;
 import com.aims.entity.enums.InterviewMode;
 import com.aims.entity.enums.InterviewRound;
 import com.aims.entity.enums.InterviewStatus;
@@ -19,6 +20,11 @@ public class InterviewRequest {
     private String candidateEmail;
     private String candidatePhone;
     private String candidateProfile;
+    private String clientName;
+    private String companyToRepresent;
+    private String interviewLink;
+    private String candidateCvUrl;
+    private FinalInterviewStatus finalStatus;
     private String skills;
     private String experience;
     @NotBlank

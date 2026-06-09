@@ -9,7 +9,10 @@ import com.aims.entity.User;
 import com.aims.entity.enums.InterviewStatus;
 import com.aims.exception.ResourceNotFoundException;
 import com.aims.repository.InterviewRepository;
+import com.aims.repository.InterviewRoundRepository;
 import com.aims.repository.UserRepository;
+import com.aims.dto.interview.InterviewRoundResponse;
+import com.aims.entity.enums.RoundStatus;
 import com.aims.util.MapperUtils;
 import com.aims.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -26,7 +30,9 @@ import java.util.List;
 public class InterviewService {
 
     private final InterviewRepository interviewRepository;
+    private final InterviewRoundRepository roundRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
     private final AuditService auditService;
     private final NotificationService notificationService;
 
@@ -39,7 +45,38 @@ public class InterviewService {
 
     @Transactional(readOnly = true)
     public InterviewResponse getById(Long id) {
-        return MapperUtils.toInterviewResponse(findInterview(id));
+        Interview interview = findInterview(id);
+        InterviewResponse response = MapperUtils.toInterviewResponse(interview);
+        response.setRounds(roundRepository.findByInterviewIdOrderByRoundNumberAsc(id).stream()
+                .map(r -> InterviewRoundResponse.builder()
+                        .id(r.getId())
+                        .roundNumber(r.getRoundNumber())
+                        .interviewLink(r.getInterviewLink())
+                        .interviewDate(r.getInterviewDate())
+                        .interviewTime(r.getInterviewTime())
+                        .companyToRepresent(r.getCompanyToRepresent())
+                        .interviewer(r.getInterviewer())
+                        .status(r.getStatus())
+                        .available(isRoundAvailable(id, r.getRoundNumber()))
+                        .build())
+                .toList());
+        return response;
+    }
+
+    @Transactional
+    public InterviewResponse uploadCv(Long id, MultipartFile file) {
+        Interview interview = findInterview(id);
+        String fileUrl = fileStorageService.store(file, "cv");
+        interview.setCandidateCvUrl(fileUrl);
+        interview = interviewRepository.save(interview);
+        return MapperUtils.toInterviewResponse(interview);
+    }
+
+    private boolean isRoundAvailable(Long interviewId, int roundNumber) {
+        if (roundNumber == 1) return true;
+        return roundRepository.findByInterviewIdAndRoundNumber(interviewId, roundNumber - 1)
+                .map(r -> r.getStatus() == RoundStatus.PASSED)
+                .orElse(false);
     }
 
     @Transactional(readOnly = true)
@@ -123,6 +160,11 @@ public class InterviewService {
         interview.setCandidateEmail(request.getCandidateEmail());
         interview.setCandidatePhone(request.getCandidatePhone());
         interview.setCandidateProfile(request.getCandidateProfile());
+        interview.setClientName(request.getClientName());
+        interview.setCompanyToRepresent(request.getCompanyToRepresent());
+        interview.setInterviewLink(request.getInterviewLink());
+        if (request.getCandidateCvUrl() != null) interview.setCandidateCvUrl(request.getCandidateCvUrl());
+        if (request.getFinalStatus() != null) interview.setFinalStatus(request.getFinalStatus());
         interview.setSkills(request.getSkills());
         interview.setExperience(request.getExperience());
         interview.setInterviewerName(request.getInterviewerName());

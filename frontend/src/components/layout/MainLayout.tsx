@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -34,11 +34,13 @@ import {
   Notifications as NotifIcon,
   Logout,
   Person,
+  Folder as ProjectIcon,
 } from '@mui/icons-material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
-import { assetApi, dashboardApi, interviewApi, notificationApi } from '../../api/services';
+import { assetApi, dashboardApi, interviewApi, notificationApi, wsBaseUrl } from '../../api/services';
+import NotificationPanel from '../notifications/NotificationPanel';
 import type { Role } from '../../types';
 
 const DRAWER_WIDTH = 260;
@@ -52,11 +54,12 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
-  { label: 'Assets', path: '/assets', icon: <AssetIcon /> },
-  { label: 'Asset Assignment', path: '/assets/assign', icon: <AssignIcon />, roles: ['ADMIN', 'HR'] },
-  { label: 'Interviews', path: '/interviews', icon: <InterviewIcon />, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { label: 'Calendar', path: '/calendar', icon: <CalendarIcon />, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { label: 'Reports', path: '/reports', icon: <ReportIcon />, roles: ['ADMIN', 'HR'] },
+  { label: 'Projects', path: '/projects', icon: <ProjectIcon />, roles: ['ADMIN', 'USER'] },
+  { label: 'Assets', path: '/assets', icon: <AssetIcon />, roles: ['ADMIN', 'USER'] },
+  { label: 'Asset Assignment', path: '/assets/assign', icon: <AssignIcon />, roles: ['ADMIN'] },
+  { label: 'Interviews', path: '/interviews', icon: <InterviewIcon />, roles: ['ADMIN', 'USER'] },
+  { label: 'Calendar', path: '/calendar', icon: <CalendarIcon />, roles: ['ADMIN', 'USER'] },
+  { label: 'Reports', path: '/reports', icon: <ReportIcon />, roles: ['ADMIN'] },
   { label: 'Users', path: '/users', icon: <UsersIcon />, roles: ['ADMIN'] },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
 ];
@@ -66,17 +69,35 @@ export default function MainLayout() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
   const { user, logout, hasRole } = useAuth();
   const { mode, toggleMode } = useThemeMode();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const wsRef = useRef<WebSocket | null>(null);
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-unread'],
     queryFn: () => notificationApi.getUnreadCount(),
-    refetchInterval: document.hidden ? false : 120000,
+    refetchInterval: document.hidden ? false : 30000,
   });
+
+  useEffect(() => {
+    if (!user?.userId) return;
+    const base = wsBaseUrl().replace(/^http/, 'ws');
+    try {
+      const ws = new WebSocket(`${base}/ws-notifications/websocket`);
+      wsRef.current = ws;
+      ws.onmessage = () => {
+        queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      };
+      return () => ws.close();
+    } catch {
+      return undefined;
+    }
+  }, [user?.userId, queryClient]);
 
   const prefetchRoute = (path: string) => {
     if (path === '/dashboard') {
@@ -163,11 +184,16 @@ export default function MainLayout() {
           <IconButton onClick={toggleMode} size="small">
             {mode === 'light' ? <Brightness4 /> : <Brightness7 />}
           </IconButton>
-          <IconButton size="small" sx={{ ml: 1 }}>
+          <IconButton
+            size="small"
+            sx={{ ml: 1 }}
+            onClick={(e) => setNotifAnchor(e.currentTarget)}
+          >
             <Badge badgeContent={unreadCount} color="error">
               <NotifIcon />
             </Badge>
           </IconButton>
+          <NotificationPanel anchorEl={notifAnchor} onClose={() => setNotifAnchor(null)} />
           <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ ml: 1 }}>
             <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 14 }}>
               {user?.fullName?.charAt(0) || 'U'}

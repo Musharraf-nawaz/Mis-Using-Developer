@@ -20,6 +20,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import com.aims.entity.enums.MediaType;
 
 import java.util.List;
 import java.util.Map;
@@ -74,8 +76,17 @@ public class AssetController {
         return ResponseEntity.ok(ApiResponse.success("Asset deleted", null));
     }
 
+    @PostMapping("/{id}/media")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AssetResponse>> uploadMedia(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("type") MediaType type) {
+        return ResponseEntity.ok(ApiResponse.success(assetService.uploadMedia(id, file, type)));
+    }
+
     @PatchMapping("/{id}/offboarded")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AssetResponse>> updateOffboarded(
             @PathVariable Long id,
             @RequestBody Map<String, Boolean> body) {
@@ -85,13 +96,13 @@ public class AssetController {
     }
 
     @PostMapping("/assign")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AssetAssignmentResponse>> assign(@Valid @RequestBody AssetAssignmentRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Asset assigned", assetService.assign(request)));
     }
 
     @PostMapping("/return/{assignmentId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AssetAssignmentResponse>> returnAsset(
             @PathVariable Long assignmentId, @RequestBody(required = false) Map<String, String> body) {
         String remarks = body != null ? body.get("remarks") : null;
@@ -104,7 +115,7 @@ public class AssetController {
     }
 
     @GetMapping("/export/csv")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<byte[]> exportCsv() throws Exception {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=assets.csv")
@@ -113,7 +124,7 @@ public class AssetController {
     }
 
     @GetMapping("/export/excel")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<byte[]> exportExcel() throws Exception {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=assets.xlsx")

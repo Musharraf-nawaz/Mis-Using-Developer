@@ -37,7 +37,7 @@ export default function AssetAssignmentPage() {
 
   const { data: usersData } = useQuery({
     queryKey: ['users-employees'],
-    queryFn: () => userApi.getAll({ role: 'EMPLOYEE', status: 'ACTIVE', size: 100 }),
+    queryFn: () => userApi.getAll({ role: 'USER', status: 'ACTIVE', size: 100 }),
   });
 
   const availableAssets = assetsData?.data?.data?.content ?? [];

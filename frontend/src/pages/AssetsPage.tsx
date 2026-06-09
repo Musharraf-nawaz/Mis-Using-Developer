@@ -20,7 +20,7 @@ import {
 import { Add, Edit, Delete, Search, Download } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { assetApi } from '../api/services';
+import { assetApi, fileUrl } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import DataTable, { Column } from '../components/common/DataTable';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
@@ -45,6 +45,8 @@ export default function AssetsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [open, setOpen] = useState(false);
   const [editAsset, setEditAsset] = useState<Asset | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const { register, handleSubmit, reset, setValue } = useForm<Partial<Asset>>();
 
   const { data, isLoading, isFetching } = useQuery({
@@ -58,13 +60,20 @@ export default function AssetsPage() {
   const total = data?.data?.data?.totalElements ?? 0;
 
   const saveMutation = useMutation({
-    mutationFn: (form: Partial<Asset>) =>
-      editAsset ? assetApi.update(editAsset.id, form) : assetApi.create(form),
+    mutationFn: async (form: Partial<Asset>) => {
+      const res = editAsset ? await assetApi.update(editAsset.id, form) : await assetApi.create(form);
+      const assetId = res.data.data.id;
+      if (photoFile) await assetApi.uploadMedia(assetId, photoFile, 'PHOTO');
+      if (videoFile) await assetApi.uploadMedia(assetId, videoFile, 'VIDEO');
+      return res;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
       toast.success(editAsset ? 'Asset updated' : 'Asset created');
       setOpen(false);
       setEditAsset(null);
+      setPhotoFile(null);
+      setVideoFile(null);
       reset();
     },
     onError: () => toast.error('Operation failed'),
@@ -126,8 +135,18 @@ export default function AssetsPage() {
   };
 
   const columns: Column<Asset>[] = [
+    {
+      id: 'photoUrl',
+      label: 'Photo',
+      render: (row) =>
+        row.photoUrl ? (
+          <Box component="img" src={fileUrl(row.photoUrl)} alt={row.assetName} sx={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 1 }} />
+        ) : '—',
+    },
     { id: 'companyName', label: 'Company', minWidth: 120 },
     { id: 'assetName', label: 'Asset Name', minWidth: 150 },
+    { id: 'serialNumber', label: 'Serial No.' },
+    { id: 'vendorName', label: 'Vendor' },
     { id: 'associatedDeveloper', label: 'Associated Developer', minWidth: 160 },
     { id: 'projectName', label: 'Project Name', minWidth: 140 },
     { id: 'assignedDate', label: 'Date Assigned' },
@@ -135,7 +154,7 @@ export default function AssetsPage() {
       id: 'projectOffboarded',
       label: 'Offboarded',
       render: (row) =>
-        hasRole('ADMIN', 'HR') ? (
+        hasRole('ADMIN') ? (
           <Switch
             size="small"
             checked={!!row.projectOffboarded}
@@ -181,7 +200,7 @@ export default function AssetsPage() {
           <Typography variant="body2" color="text.secondary">Track and manage company assets</Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          {hasRole('ADMIN', 'HR') && (
+          {hasRole('ADMIN') && (
             <>
               <Button startIcon={<Download />} variant="outlined" onClick={() => handleExport('csv')}>CSV</Button>
               <Button startIcon={<Download />} variant="outlined" onClick={() => handleExport('excel')}>Excel</Button>
@@ -267,8 +286,39 @@ export default function AssetsPage() {
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
+                <TextField fullWidth label="Serial Number" {...register('serialNumber')} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth label="Vendor Name" {...register('vendorName')} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField fullWidth label="Warranty Expiry" type="date" InputLabelProps={{ shrink: true }} {...register('warrantyExpiryDate')} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
                 <TextField fullWidth label="Remarks" {...register('remarks')} />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <Button variant="outlined" component="label" fullWidth>
+                  Upload Photo
+                  <input type="file" hidden accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
+                </Button>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Button variant="outlined" component="label" fullWidth>
+                  Upload Video
+                  <input type="file" hidden accept="video/*" onChange={(e) => setVideoFile(e.target.files?.[0] || null)} />
+                </Button>
+              </Grid>
+              {editAsset?.photoUrl && (
+                <Grid item xs={12}>
+                  <Box component="img" src={fileUrl(editAsset.photoUrl)} alt="preview" sx={{ maxHeight: 120, borderRadius: 1 }} />
+                </Grid>
+              )}
+              {editAsset?.videoUrl && (
+                <Grid item xs={12}>
+                  <Box component="video" src={fileUrl(editAsset.videoUrl)} controls sx={{ maxHeight: 160, borderRadius: 1 }} />
+                </Grid>
+              )}
               <Grid item xs={12}>
                 <FormControlLabel
                   control={<Switch {...register('projectOffboarded')} />}

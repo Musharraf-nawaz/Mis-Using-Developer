@@ -23,8 +23,7 @@ public class DataInitializer implements CommandLineRunner {
         if (userRepository.count() == 0) {
             log.info("Initializing default users...");
             createUser("System Administrator", "admin@aims.com", Role.ADMIN, "IT", "EMP001");
-            createUser("HR Manager", "hr@aims.com", Role.HR, "Human Resources", "EMP002");
-            createUser("John Employee", "employee@aims.com", Role.EMPLOYEE, "Engineering", "EMP003");
+            createUser("Standard User", "user@aims.com", Role.USER, "Engineering", "EMP002");
             log.info("Default users created. Password: Admin@123");
         }
     }

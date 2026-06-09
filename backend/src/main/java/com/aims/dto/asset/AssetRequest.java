@@ -24,6 +24,8 @@ public class AssetRequest {
     private BigDecimal purchaseCost;
     private AssetStatus status;
     private Boolean projectOffboarded;
+    private LocalDate warrantyExpiryDate;
+    private String vendorName;
     private String condition;
     private String remarks;
 }

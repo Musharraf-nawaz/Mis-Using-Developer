@@ -72,6 +72,12 @@ public class Asset {
     @Builder.Default
     private AssetStatus status = AssetStatus.AVAILABLE;
 
+    @Column(name = "warranty_expiry_date")
+    private LocalDate warrantyExpiryDate;
+
+    @Column(name = "vendor_name", length = 150)
+    private String vendorName;
+
     @Column(length = 50)
     private String condition;
 

@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final JavaMailSender mailSender;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Async
     @Transactional
@@ -56,7 +58,13 @@ public class NotificationService {
             }
         }
 
-        notificationRepository.save(notification);
+        notification = notificationRepository.save(notification);
+        try {
+            messagingTemplate.convertAndSend("/topic/notifications/" + userId,
+                    MapperUtils.toNotificationResponse(notification));
+        } catch (Exception e) {
+            log.warn("WebSocket notification push failed: {}", e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

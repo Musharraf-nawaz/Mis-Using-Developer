@@ -7,13 +7,16 @@ import com.aims.dto.asset.AssetResponse;
 import com.aims.dto.common.PageResponse;
 import com.aims.entity.Asset;
 import com.aims.entity.AssetAssignment;
+import com.aims.entity.AssetMedia;
 import com.aims.entity.User;
 import com.aims.entity.enums.AssetStatus;
+import com.aims.entity.enums.MediaType;
 import com.aims.entity.enums.AssignmentStatus;
 import com.aims.entity.enums.Role;
 import com.aims.exception.BadRequestException;
 import com.aims.exception.ResourceNotFoundException;
 import com.aims.repository.AssetAssignmentRepository;
+import com.aims.repository.AssetMediaRepository;
 import com.aims.repository.AssetRepository;
 import com.aims.repository.UserRepository;
 import com.aims.security.UserPrincipal;
@@ -24,6 +27,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -34,7 +38,9 @@ public class AssetService {
 
     private final AssetRepository assetRepository;
     private final AssetAssignmentRepository assignmentRepository;
+    private final AssetMediaRepository assetMediaRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
     private final AuditService auditService;
     private final NotificationService notificationService;
 
@@ -42,16 +48,17 @@ public class AssetService {
     public PageResponse<AssetResponse> getAll(String search, String company, String assetType,
                                                AssetStatus status, Long assignedToId, Pageable pageable) {
         UserPrincipal current = SecurityUtils.getCurrentUser();
-        if (current != null && Role.EMPLOYEE.name().equals(current.getRole())) {
+        if (current != null && Role.USER.name().equals(current.getRole())) {
             assignedToId = current.getId();
         }
         Page<Asset> page = assetRepository.findWithFilters(search, company, assetType, status, assignedToId, pageable);
-        return PageResponse.from(page.map(MapperUtils::toAssetResponse));
+        return PageResponse.from(page.map(a -> MapperUtils.toAssetResponse(a, assetMediaRepository.findByAssetId(a.getId()))));
     }
 
     @Transactional(readOnly = true)
     public AssetResponse getById(Long id) {
-        return MapperUtils.toAssetResponse(findAsset(id));
+        Asset asset = findAsset(id);
+        return MapperUtils.toAssetResponse(asset, assetMediaRepository.findByAssetId(id));
     }
 
     @Transactional
@@ -66,7 +73,7 @@ public class AssetService {
         asset.setStatus(request.getStatus() != null ? request.getStatus() : AssetStatus.AVAILABLE);
         asset = assetRepository.save(asset);
         auditService.log("ASSET_CREATED", "ASSET", asset.getId(), null, asset.getAssetName());
-        return MapperUtils.toAssetResponse(asset);
+        return MapperUtils.toAssetResponse(asset, List.of());
     }
 
     @Transactional
@@ -75,7 +82,24 @@ public class AssetService {
         asset = mapToEntity(asset, request);
         asset = assetRepository.save(asset);
         auditService.log("ASSET_UPDATED", "ASSET", asset.getId(), null, asset.getAssetName());
-        return MapperUtils.toAssetResponse(asset);
+        return MapperUtils.toAssetResponse(asset, assetMediaRepository.findByAssetId(id));
+    }
+
+    @Transactional
+    public AssetResponse uploadMedia(Long id, MultipartFile file, MediaType mediaType) {
+        Asset asset = findAsset(id);
+        String category = mediaType == MediaType.PHOTO ? "photo" : "video";
+        String fileUrl = fileStorageService.store(file, category);
+        assetMediaRepository.findByAssetIdAndMediaType(id, mediaType).forEach(assetMediaRepository::delete);
+        AssetMedia media = AssetMedia.builder()
+                .asset(asset)
+                .mediaType(mediaType)
+                .fileUrl(fileUrl)
+                .fileName(file.getOriginalFilename())
+                .build();
+        assetMediaRepository.save(media);
+        auditService.log("ASSET_MEDIA_UPLOADED", "ASSET", id, null, mediaType.name());
+        return MapperUtils.toAssetResponse(asset, assetMediaRepository.findByAssetId(id));
     }
 
     @Transactional
@@ -193,6 +217,8 @@ public class AssetService {
         asset.setPurchaseCost(request.getPurchaseCost());
         asset.setProjectOffboarded(request.getProjectOffboarded() != null && request.getProjectOffboarded());
         if (request.getStatus() != null) asset.setStatus(request.getStatus());
+        asset.setWarrantyExpiryDate(request.getWarrantyExpiryDate());
+        asset.setVendorName(request.getVendorName());
         asset.setCondition(request.getCondition());
         asset.setRemarks(request.getRemarks());
         return asset;

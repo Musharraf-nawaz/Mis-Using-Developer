@@ -1,8 +1,10 @@
 package com.aims.dto.interview;
 
+import com.aims.entity.enums.FinalInterviewStatus;
 import com.aims.entity.enums.InterviewMode;
 import com.aims.entity.enums.InterviewRound;
 import com.aims.entity.enums.InterviewStatus;
+import com.aims.dto.interview.InterviewRoundResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,6 +13,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -22,6 +25,11 @@ public class InterviewResponse {
     private String candidateEmail;
     private String candidatePhone;
     private String candidateProfile;
+    private String clientName;
+    private String companyToRepresent;
+    private String interviewLink;
+    private String candidateCvUrl;
+    private FinalInterviewStatus finalStatus;
     private String skills;
     private String experience;
     private String interviewerName;
@@ -34,6 +42,7 @@ public class InterviewResponse {
     private InterviewStatus interviewStatus;
     private String feedback;
     private String notes;
+    private List<InterviewRoundResponse> rounds;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

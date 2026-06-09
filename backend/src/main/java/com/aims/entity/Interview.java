@@ -1,5 +1,6 @@
 package com.aims.entity;
 
+import com.aims.entity.enums.FinalInterviewStatus;
 import com.aims.entity.enums.InterviewMode;
 import com.aims.entity.enums.InterviewRound;
 import com.aims.entity.enums.InterviewStatus;
@@ -36,6 +37,22 @@ public class Interview {
 
     @Column(name = "candidate_profile", length = 200)
     private String candidateProfile;
+
+    @Column(name = "client_name", length = 150)
+    private String clientName;
+
+    @Column(name = "company_to_represent", length = 150)
+    private String companyToRepresent;
+
+    @Column(name = "interview_link", length = 500)
+    private String interviewLink;
+
+    @Column(name = "candidate_cv_url", length = 500)
+    private String candidateCvUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "final_status", length = 20)
+    private FinalInterviewStatus finalStatus;
 
     @Column(columnDefinition = "TEXT")
     private String skills;

@@ -1,12 +1,16 @@
 package com.aims.util;
 
 import com.aims.dto.asset.AssetAssignmentResponse;
+import com.aims.dto.asset.AssetMediaResponse;
 import com.aims.dto.asset.AssetResponse;
 import com.aims.dto.audit.AuditLogResponse;
 import com.aims.dto.interview.InterviewResponse;
 import com.aims.dto.notification.NotificationResponse;
 import com.aims.dto.user.UserResponse;
 import com.aims.entity.*;
+import com.aims.entity.enums.MediaType;
+
+import java.util.List;
 
 public final class MapperUtils {
 
@@ -27,6 +31,19 @@ public final class MapperUtils {
     }
 
     public static AssetResponse toAssetResponse(Asset asset) {
+        return toAssetResponse(asset, List.of());
+    }
+
+    public static AssetResponse toAssetResponse(Asset asset, List<AssetMedia> mediaList) {
+        String photoUrl = null;
+        String videoUrl = null;
+        List<AssetMediaResponse> mediaResponses = mediaList.stream()
+                .map(MapperUtils::toMediaResponse)
+                .toList();
+        for (AssetMedia m : mediaList) {
+            if (m.getMediaType() == MediaType.PHOTO) photoUrl = m.getFileUrl();
+            if (m.getMediaType() == MediaType.VIDEO) videoUrl = m.getFileUrl();
+        }
         return AssetResponse.builder()
                 .id(asset.getId())
                 .companyName(asset.getCompanyName())
@@ -45,10 +62,25 @@ public final class MapperUtils {
                 .returnDate(asset.getReturnDate())
                 .projectOffboarded(asset.getProjectOffboarded())
                 .status(asset.getStatus())
+                .warrantyExpiryDate(asset.getWarrantyExpiryDate())
+                .vendorName(asset.getVendorName())
+                .photoUrl(photoUrl)
+                .videoUrl(videoUrl)
+                .media(mediaResponses)
                 .condition(asset.getCondition())
                 .remarks(asset.getRemarks())
                 .createdAt(asset.getCreatedAt())
                 .updatedAt(asset.getUpdatedAt())
+                .build();
+    }
+
+    public static AssetMediaResponse toMediaResponse(AssetMedia media) {
+        return AssetMediaResponse.builder()
+                .id(media.getId())
+                .mediaType(media.getMediaType())
+                .fileUrl(media.getFileUrl())
+                .fileName(media.getFileName())
+                .uploadedAt(media.getUploadedAt())
                 .build();
     }
 
@@ -77,6 +109,11 @@ public final class MapperUtils {
                 .candidateEmail(interview.getCandidateEmail())
                 .candidatePhone(interview.getCandidatePhone())
                 .candidateProfile(interview.getCandidateProfile())
+                .clientName(interview.getClientName())
+                .companyToRepresent(interview.getCompanyToRepresent())
+                .interviewLink(interview.getInterviewLink())
+                .candidateCvUrl(interview.getCandidateCvUrl())
+                .finalStatus(interview.getFinalStatus())
                 .skills(interview.getSkills())
                 .experience(interview.getExperience())
                 .interviewerName(interview.getInterviewerName())

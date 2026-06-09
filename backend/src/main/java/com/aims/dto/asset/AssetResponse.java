@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -32,6 +33,11 @@ public class AssetResponse {
     private LocalDate returnDate;
     private Boolean projectOffboarded;
     private AssetStatus status;
+    private LocalDate warrantyExpiryDate;
+    private String vendorName;
+    private String photoUrl;
+    private String videoUrl;
+    private List<AssetMediaResponse> media;
     private String condition;
     private String remarks;
     private LocalDateTime createdAt;
