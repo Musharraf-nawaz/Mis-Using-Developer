@@ -24,9 +24,6 @@ spring:
         default_batch_fetch_size: 16
     open-in-view: false
 
-  cache:
-    type: caffeine
-
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
