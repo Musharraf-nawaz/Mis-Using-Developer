@@ -47,6 +47,15 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard() {
+        try {
+            return buildDashboard();
+        } catch (Exception ex) {
+            log.error("Dashboard load failed, returning fallback response", ex);
+            return buildFallbackDashboard();
+        }
+    }
+
+    private DashboardResponse buildDashboard() {
         LocalDate today = LocalDate.now();
         UserPrincipal current = SecurityUtils.getCurrentUser();
         boolean isAdmin = current != null && Role.ADMIN.name().equals(current.getRole());
@@ -91,6 +100,7 @@ public class DashboardService {
                 log.warn("Failed to load admin project stats: {}", ex.getMessage());
             }
         } else if (current != null) {
+            try {
             List<Project> myProjects = projectRepository.findByAssignedUserId(current.getId());
             long working = myProjects.stream()
                     .mapToLong(p -> p.getCandidateWorkingCount() != null ? p.getCandidateWorkingCount() : 0)
@@ -118,6 +128,9 @@ public class DashboardService {
                     .assignedAssets(myAssets)
                     .upcomingInterviews(interviewStats.getUpcomingInterviews())
                     .build();
+            } catch (Exception ex) {
+                log.warn("Failed to load user dashboard stats: {}", ex.getMessage());
+            }
         }
 
         List<Map<String, Object>> assetStatusDistribution = safeAssetStatusDistribution();
@@ -142,6 +155,31 @@ public class DashboardService {
                 .recentAssignments(recentAssignments)
                 .recentReturns(recentReturns)
                 .upcomingInterviews(upcomingInterviews)
+                .build();
+    }
+
+    private DashboardResponse buildFallbackDashboard() {
+        UserPrincipal current = SecurityUtils.getCurrentUser();
+        boolean isAdmin = current != null && Role.ADMIN.name().equals(current.getRole());
+        DashboardResponse.AssetStats emptyAssets = DashboardResponse.AssetStats.builder()
+                .totalAssets(0).availableAssets(0).assignedAssets(0).returnedAssets(0).damagedAssets(0)
+                .build();
+        DashboardResponse.InterviewStats emptyInterviews = DashboardResponse.InterviewStats.builder()
+                .todayInterviews(0).upcomingInterviews(0).completedInterviews(0)
+                .cancelledInterviews(0).scheduledInterviews(0)
+                .build();
+        return DashboardResponse.builder()
+                .admin(isAdmin)
+                .assetStats(emptyAssets)
+                .interviewStats(emptyInterviews)
+                .assignedProjects(List.of())
+                .assignedAssets(List.of())
+                .assetStatusDistribution(List.of())
+                .monthlyInterviewStats(List.of())
+                .assetAllocationTrends(List.of())
+                .recentAssignments(List.of())
+                .recentReturns(List.of())
+                .upcomingInterviews(List.of())
                 .build();
     }
 
