@@ -12,6 +12,7 @@ import {
   Chip,
   Skeleton,
   Avatar,
+  Button,
 } from '@mui/material';
 import {
   Inventory,
@@ -35,10 +36,11 @@ export default function DashboardPage() {
   const { hasRole } = useAuth();
   const isAdmin = hasRole('ADMIN');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => dashboardApi.get(),
     placeholderData: keepPreviousData,
+    retry: 2,
   });
 
   const dashboard = data?.data?.data;
@@ -47,8 +49,17 @@ export default function DashboardPage() {
     return <DashboardSkeleton />;
   }
 
-  if (!dashboard) {
-    return <Typography>Unable to load dashboard.</Typography>;
+  if (isError || !dashboard) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 6 }}>
+        <Typography color="error" gutterBottom>
+          Unable to load dashboard.
+        </Typography>
+        <Button variant="contained" onClick={() => refetch()}>
+          Retry
+        </Button>
+      </Box>
+    );
   }
 
   const { assetStats, interviewStats } = dashboard;
