@@ -19,8 +19,8 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
 
     boolean existsByAssetTag(String assetTag);
 
-    @Query("SELECT a FROM Asset a LEFT JOIN FETCH a.assignedTo WHERE " +
-           "(:search IS NULL OR LOWER(a.assetName) LIKE LOWER(CONCAT('%', :search, '%')) " +
+    @Query("SELECT a FROM Asset a WHERE " +
+           "(:search IS NULL OR :search = '' OR LOWER(a.assetName) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(a.assetTag) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(a.serialNumber) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "AND (:company IS NULL OR a.companyName = :company) " +

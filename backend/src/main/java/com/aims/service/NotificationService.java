@@ -91,10 +91,6 @@ public class NotificationService {
 
     @Transactional
     public void markAllAsRead(Long userId) {
-        notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, Pageable.unpaged())
-                .forEach(n -> {
-                    n.setRead(true);
-                    notificationRepository.save(n);
-                });
+        notificationRepository.markAllAsReadByUserId(userId);
     }
 }

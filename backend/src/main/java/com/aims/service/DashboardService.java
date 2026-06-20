@@ -1,9 +1,9 @@
 package com.aims.service;
 
 import com.aims.dto.dashboard.DashboardResponse;
-import com.aims.entity.AssetMedia;
 import com.aims.entity.Asset;
 import com.aims.entity.AssetAssignment;
+import com.aims.entity.AssetMedia;
 import com.aims.entity.Interview;
 import com.aims.entity.Project;
 import com.aims.entity.enums.AssetStatus;
@@ -20,11 +20,11 @@ import com.aims.security.UserPrincipal;
 import com.aims.util.AssetMediaUtils;
 import com.aims.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -33,6 +33,8 @@ import java.util.*;
 @RequiredArgsConstructor
 public class DashboardService {
 
+    private static final int MAX_ASSIGNED_ASSETS = 6;
+
     private final AssetRepository assetRepository;
     private final AssetAssignmentRepository assignmentRepository;
     private final AssetMediaRepository assetMediaRepository;
@@ -40,26 +42,41 @@ public class DashboardService {
     private final ProjectRepository projectRepository;
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "dashboard", key = "T(java.util.Objects).toString(T(com.aims.util.SecurityUtils).getCurrentUserId(), 'guest')")
     public DashboardResponse getDashboard() {
         LocalDate today = LocalDate.now();
         UserPrincipal current = SecurityUtils.getCurrentUser();
         boolean isAdmin = current != null && Role.ADMIN.name().equals(current.getRole());
 
+        Map<String, Long> assetCounts = new HashMap<>();
+        long totalAssets = 0;
+        for (Object[] row : assetRepository.countByStatusGrouped()) {
+            String status = row[0].toString();
+            long count = ((Number) row[1]).longValue();
+            assetCounts.put(status, count);
+            totalAssets += count;
+        }
+
         DashboardResponse.AssetStats assetStats = DashboardResponse.AssetStats.builder()
-                .totalAssets(assetRepository.count())
-                .availableAssets(assetRepository.countByStatus(AssetStatus.AVAILABLE))
-                .assignedAssets(assetRepository.countByStatus(AssetStatus.ASSIGNED))
-                .returnedAssets(assetRepository.countByStatus(AssetStatus.RETURNED))
-                .damagedAssets(assetRepository.countByStatus(AssetStatus.DAMAGED))
+                .totalAssets(totalAssets)
+                .availableAssets(assetCounts.getOrDefault(AssetStatus.AVAILABLE.name(), 0L))
+                .assignedAssets(assetCounts.getOrDefault(AssetStatus.ASSIGNED.name(), 0L))
+                .returnedAssets(assetCounts.getOrDefault(AssetStatus.RETURNED.name(), 0L))
+                .damagedAssets(assetCounts.getOrDefault(AssetStatus.DAMAGED.name(), 0L))
                 .build();
 
+        Map<String, Long> interviewCounts = new HashMap<>();
+        for (Object[] row : interviewRepository.countByStatusGrouped()) {
+            interviewCounts.put(row[0].toString(), ((Number) row[1]).longValue());
+        }
+        long scheduled = interviewCounts.getOrDefault(InterviewStatus.SCHEDULED.name(), 0L);
+
         DashboardResponse.InterviewStats interviewStats = DashboardResponse.InterviewStats.builder()
-                .todayInterviews(interviewRepository.countByInterviewDateAndInterviewStatus(
-                        today, InterviewStatus.SCHEDULED))
-                .upcomingInterviews(interviewRepository.countByInterviewStatus(InterviewStatus.SCHEDULED))
-                .completedInterviews(interviewRepository.countByInterviewStatus(InterviewStatus.COMPLETED))
-                .cancelledInterviews(interviewRepository.countByInterviewStatus(InterviewStatus.CANCELLED))
-                .scheduledInterviews(interviewRepository.countByInterviewStatus(InterviewStatus.SCHEDULED))
+                .todayInterviews(interviewRepository.countByInterviewDateAndInterviewStatus(today, InterviewStatus.SCHEDULED))
+                .upcomingInterviews(scheduled)
+                .completedInterviews(interviewCounts.getOrDefault(InterviewStatus.COMPLETED.name(), 0L))
+                .cancelledInterviews(interviewCounts.getOrDefault(InterviewStatus.CANCELLED.name(), 0L))
+                .scheduledInterviews(scheduled)
                 .build();
 
         DashboardResponse.ProjectStats projectStats = null;
@@ -69,16 +86,13 @@ public class DashboardService {
 
         if (isAdmin) {
             Object[] sums = projectRepository.sumCandidateCounts();
-            long working = sums[0] != null ? ((Number) sums[0]).longValue() : 0;
-            long interviewCand = sums[1] != null ? ((Number) sums[1]).longValue() : 0;
-            long onboarded = sums[2] != null ? ((Number) sums[2]).longValue() : 0;
             projectStats = DashboardResponse.ProjectStats.builder()
                     .totalProjects(projectRepository.count())
                     .activeProjects(projectRepository.countByStatus(ProjectStatus.ACTIVE))
                     .totalBudget(projectRepository.sumBudget())
-                    .workingCandidates(working)
-                    .interviewCandidates(interviewCand)
-                    .onboardedCandidates(onboarded)
+                    .workingCandidates(sums[0] != null ? ((Number) sums[0]).longValue() : 0)
+                    .interviewCandidates(sums[1] != null ? ((Number) sums[1]).longValue() : 0)
+                    .onboardedCandidates(sums[2] != null ? ((Number) sums[2]).longValue() : 0)
                     .build();
         } else if (current != null) {
             List<Project> myProjects = projectRepository.findByAssignedUserId(current.getId());
@@ -99,23 +113,20 @@ public class DashboardService {
                             .remarks(p.getRemarks())
                             .build())
                     .toList();
-            assignedAssets = buildAssignedAssets(assetRepository.findByAssignedToId(current.getId()));
+            List<Asset> assets = assetRepository.findByAssignedToId(current.getId());
+            assignedAssets = buildAssignedAssets(assets.stream().limit(MAX_ASSIGNED_ASSETS).toList());
             userStats = DashboardResponse.UserDashboardStats.builder()
                     .assignedProjects(myProjects.size())
                     .workingCandidates(working)
                     .onboardedCandidates(onboarded)
                     .assignedAssets(myAssets)
-                    .upcomingInterviews(interviewStats.getUpcomingInterviews())
+                    .upcomingInterviews(scheduled)
                     .build();
         }
 
-        List<Map<String, Object>> assetStatusDistribution = new ArrayList<>();
-        assetRepository.countByStatusGrouped().forEach(row -> {
-            Map<String, Object> item = new HashMap<>();
-            item.put("status", row[0].toString());
-            item.put("count", row[1]);
-            assetStatusDistribution.add(item);
-        });
+        List<Map<String, Object>> assetStatusDistribution = assetCounts.entrySet().stream()
+                .map(e -> Map.<String, Object>of("status", e.getKey(), "count", e.getValue()))
+                .toList();
 
         List<Map<String, Object>> monthlyInterviewStats = new ArrayList<>();
         interviewRepository.countByMonthAndStatus(today.minusMonths(6)).forEach(row -> {
@@ -184,7 +195,7 @@ public class DashboardService {
                             .assignedDate(asset.getAssignedDate() != null ? asset.getAssignedDate().toString() : null)
                             .status(asset.getStatus())
                             .photoUrl(AssetMediaUtils.photoUrl(media))
-                            .videoUrl(AssetMediaUtils.videoUrl(media))
+                            .videoUrl(null)
                             .build();
                 })
                 .toList();

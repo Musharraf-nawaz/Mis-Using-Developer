@@ -102,6 +102,15 @@ export interface InterviewRoundData {
   available: boolean;
 }
 
+export interface InterviewCalendar {
+  id: number;
+  candidateName: string;
+  interviewDate: string;
+  interviewTime: string;
+  interviewRound: InterviewRound;
+  interviewStatus: InterviewStatus;
+}
+
 export interface Interview {
   id: number;
   candidateName: string;

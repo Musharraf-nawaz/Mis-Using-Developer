@@ -52,7 +52,6 @@ export default function DashboardPage() {
   }
 
   const { assetStats, interviewStats } = dashboard;
-  const todayInterviews = dashboard.upcomingInterviews.filter((item) => item.today);
 
   return (
     <Box>
@@ -170,6 +169,8 @@ export default function DashboardPage() {
                           component="img"
                           src={fileUrl(a.photoUrl)}
                           alt={a.assetName}
+                          loading="lazy"
+                          decoding="async"
                           sx={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 1, mb: 1 }}
                         />
                       )}
@@ -181,7 +182,17 @@ export default function DashboardPage() {
                         <Chip label={a.status} size="small" />
                       </Box>
                       {a.videoUrl && (
-                        <Box component="video" src={fileUrl(a.videoUrl)} controls sx={{ width: '100%', mt: 1, borderRadius: 1 }} />
+                        <Typography
+                          component="a"
+                          href={fileUrl(a.videoUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="caption"
+                          color="primary"
+                          sx={{ display: 'block', mt: 1 }}
+                        >
+                          View asset video
+                        </Typography>
                       )}
                     </CardContent>
                   </Card>
@@ -264,8 +275,6 @@ export default function DashboardPage() {
           assetAllocationTrends={dashboard.assetAllocationTrends}
           recentAssignments={dashboard.recentAssignments}
           recentReturns={dashboard.recentReturns}
-          upcomingInterviews={dashboard.upcomingInterviews}
-          todayInterviewCount={todayInterviews.length}
         />
       </Suspense>
     </Box>

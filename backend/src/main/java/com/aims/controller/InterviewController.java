@@ -2,6 +2,7 @@ package com.aims.controller;
 
 import com.aims.dto.common.ApiResponse;
 import com.aims.dto.common.PageResponse;
+import com.aims.dto.interview.InterviewCalendarResponse;
 import com.aims.dto.interview.InterviewRequest;
 import com.aims.dto.interview.InterviewRoundRequest;
 import com.aims.dto.interview.InterviewRoundResponse;
@@ -54,7 +55,7 @@ public class InterviewController {
     }
 
     @GetMapping("/calendar")
-    public ResponseEntity<ApiResponse<List<InterviewResponse>>> getCalendar(
+    public ResponseEntity<ApiResponse<List<InterviewCalendarResponse>>> getCalendar(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
             @RequestParam(required = false) InterviewStatus status) {

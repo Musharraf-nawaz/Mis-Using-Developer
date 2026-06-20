@@ -8,8 +8,8 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:aims_password}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 5
-      minimum-idle: 1
+      maximum-pool-size: 10
+      minimum-idle: 2
       connection-timeout: 20000
       idle-timeout: 300000
 
@@ -21,7 +21,11 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        default_batch_fetch_size: 16
     open-in-view: false
+
+  cache:
+    type: caffeine
 
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}

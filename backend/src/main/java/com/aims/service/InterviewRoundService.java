@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,9 +34,7 @@ public class InterviewRoundService {
     @Transactional(readOnly = true)
     public List<InterviewRoundResponse> getRounds(Long interviewId) {
         ensureInterview(interviewId);
-        return roundRepository.findByInterviewIdOrderByRoundNumberAsc(interviewId).stream()
-                .map(this::toResponse)
-                .toList();
+        return toResponses(roundRepository.findByInterviewIdOrderByRoundNumberAsc(interviewId));
     }
 
     @Transactional
@@ -58,7 +58,15 @@ public class InterviewRoundService {
                     .build();
             rounds.add(roundRepository.save(round));
         }
-        return rounds.stream().map(this::toResponse).toList();
+        return toResponses(rounds);
+    }
+
+    private List<InterviewRoundResponse> toResponses(List<InterviewRound> rounds) {
+        Map<Integer, RoundStatus> statusByRound = rounds.stream()
+                .collect(Collectors.toMap(InterviewRound::getRoundNumber, InterviewRound::getStatus, (a, b) -> a));
+        return rounds.stream()
+                .map(round -> toResponse(round, statusByRound))
+                .toList();
     }
 
     @Transactional
@@ -85,7 +93,10 @@ public class InterviewRoundService {
         }
         round = roundRepository.save(round);
         auditService.log("INTERVIEW_ROUND_UPDATED", "INTERVIEW", interviewId, null, "Round " + roundNumber);
-        return toResponse(round);
+        List<InterviewRound> allRounds = roundRepository.findByInterviewIdOrderByRoundNumberAsc(interviewId);
+        Map<Integer, RoundStatus> statusByRound = allRounds.stream()
+                .collect(Collectors.toMap(InterviewRound::getRoundNumber, InterviewRound::getStatus, (a, b) -> a));
+        return toResponse(round, statusByRound);
     }
 
     private void handleStatusSideEffects(Interview interview, int roundNumber, RoundStatus status) {
@@ -119,12 +130,9 @@ public class InterviewRoundService {
         }
     }
 
-    private InterviewRoundResponse toResponse(InterviewRound round) {
-        boolean available = round.getRoundNumber() == 1;
-        if (round.getRoundNumber() > 1) {
-            available = roundRepository.findByInterviewIdAndRoundNumber(round.getInterview().getId(), round.getRoundNumber() - 1)
-                    .map(r -> r.getStatus() == RoundStatus.PASSED).orElse(false);
-        }
+    private InterviewRoundResponse toResponse(InterviewRound round, Map<Integer, RoundStatus> statusByRound) {
+        boolean available = round.getRoundNumber() == 1
+                || statusByRound.getOrDefault(round.getRoundNumber() - 1, RoundStatus.SCHEDULED) == RoundStatus.PASSED;
         return InterviewRoundResponse.builder()
                 .id(round.getId())
                 .roundNumber(round.getRoundNumber())

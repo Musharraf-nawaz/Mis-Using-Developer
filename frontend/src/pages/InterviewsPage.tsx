@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   Box,
@@ -40,6 +40,10 @@ export default function InterviewsPage() {
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
+
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedSearch]);
   const [open, setOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [stepperOpen, setStepperOpen] = useState(false);
@@ -137,7 +141,7 @@ export default function InterviewsPage() {
     },
   });
 
-  const columns: Column<Interview>[] = [
+  const columns: Column<Interview>[] = useMemo(() => [
     { id: 'candidateName', label: 'Candidate', minWidth: 140 },
     { id: 'clientName', label: 'Client' },
     { id: 'midClientName', label: 'Mid Client' },
@@ -225,7 +229,7 @@ export default function InterviewsPage() {
           />
         ) : null,
     },
-  ];
+  ], [hasRole, completeMutation.mutate, cancelMutation.mutate, setValue]);
 
   return (
     <Box>
@@ -242,7 +246,7 @@ export default function InterviewsPage() {
       </Box>
 
       <TextField size="small" placeholder="Search candidates..." value={search}
-        onChange={(e) => setSearch(e.target.value)} sx={{ mb: 2, width: 300 }} />
+        onChange={(e) => { setSearch(e.target.value); }} sx={{ mb: 2, width: 300 }} />
 
       <DataTable columns={columns} rows={interviews} loading={isLoading} fetching={isFetching} page={page} size={size}
         total={total} onPageChange={setPage} onSizeChange={setSize} getRowId={(r) => r.id} />

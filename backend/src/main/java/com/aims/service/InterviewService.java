@@ -1,6 +1,7 @@
 package com.aims.service;
 
 import com.aims.dto.common.PageResponse;
+import com.aims.dto.interview.InterviewCalendarResponse;
 import com.aims.dto.interview.InterviewRequest;
 import com.aims.dto.interview.RescheduleInterviewRequest;
 import com.aims.dto.interview.InterviewResponse;
@@ -80,9 +81,9 @@ public class InterviewService {
     }
 
     @Transactional(readOnly = true)
-    public List<InterviewResponse> getCalendar(LocalDate start, LocalDate end, InterviewStatus status) {
+    public List<InterviewCalendarResponse> getCalendar(LocalDate start, LocalDate end, InterviewStatus status) {
         return interviewRepository.findByDateRange(start, end, status).stream()
-                .map(MapperUtils::toInterviewResponse)
+                .map(MapperUtils::toCalendarResponse)
                 .toList();
     }
 

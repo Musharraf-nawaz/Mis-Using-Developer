@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   Box,
@@ -43,6 +43,10 @@ export default function AssetsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [statusFilter, setStatusFilter] = useState('');
+
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedSearch, statusFilter]);
   const [open, setOpen] = useState(false);
   const [editAsset, setEditAsset] = useState<Asset | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -128,19 +132,19 @@ export default function AssetsPage() {
     a.click();
   };
 
-  const openEdit = (asset: Asset) => {
+  const openEdit = useCallback((asset: Asset) => {
     setEditAsset(asset);
     Object.entries(asset).forEach(([k, v]) => setValue(k as keyof Asset, v));
     setOpen(true);
-  };
+  }, [setValue]);
 
-  const columns: Column<Asset>[] = [
+  const columns: Column<Asset>[] = useMemo(() => [
     {
       id: 'photoUrl',
       label: 'Photo',
       render: (row) =>
         row.photoUrl ? (
-          <Box component="img" src={fileUrl(row.photoUrl)} alt={row.assetName} sx={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 1 }} />
+          <Box component="img" src={fileUrl(row.photoUrl)} alt={row.assetName} loading="lazy" decoding="async" sx={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 1 }} />
         ) : '—',
     },
     { id: 'companyName', label: 'Company', minWidth: 120 },
@@ -190,7 +194,7 @@ export default function AssetsPage() {
           </Box>
         ) : null,
     },
-  ];
+  ], [hasRole, offboardMutation.isPending, offboardMutation.mutate, deleteMutation.mutate, openEdit]);
 
   return (
     <Box>

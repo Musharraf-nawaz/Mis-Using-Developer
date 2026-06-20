@@ -1,4 +1,5 @@
-import { Grid, Typography, Card, CardContent, List, ListItem, ListItemText, Chip } from '@mui/material';
+import { memo, useMemo } from 'react';
+import { Grid, Typography, Card, CardContent, List, ListItem, ListItemText } from '@mui/material';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { ActivityItem } from '../../types';
 
@@ -9,27 +10,23 @@ interface DashboardChartsProps {
   assetAllocationTrends: { month: string; count: number }[];
   recentAssignments: ActivityItem[];
   recentReturns: ActivityItem[];
-  upcomingInterviews: ActivityItem[];
-  todayInterviewCount: number;
 }
 
-export default function DashboardCharts({
+function DashboardCharts({
   assetStatusDistribution,
   assetAllocationTrends,
   recentAssignments,
   recentReturns,
-  upcomingInterviews,
-  todayInterviewCount,
 }: DashboardChartsProps) {
-  const pieData = assetStatusDistribution.map((d) => ({
-    name: d.status,
-    value: Number(d.count),
-  }));
+  const pieData = useMemo(
+    () => assetStatusDistribution.map((d) => ({ name: d.status, value: Number(d.count) })),
+    [assetStatusDistribution]
+  );
 
-  const barData = assetAllocationTrends.map((d) => ({
-    month: d.month,
-    assignments: Number(d.count),
-  }));
+  const barData = useMemo(
+    () => assetAllocationTrends.map((d) => ({ month: d.month, assignments: Number(d.count) })),
+    [assetAllocationTrends]
+  );
 
   return (
     <Grid container spacing={3}>
@@ -70,7 +67,7 @@ export default function DashboardCharts({
           </CardContent>
         </Card>
       </Grid>
-      <Grid item xs={12} md={4}>
+      <Grid item xs={12} md={6}>
         <Card sx={{ height: '100%' }}>
           <CardContent>
             <Typography variant="subtitle1" fontWeight={600} gutterBottom>
@@ -86,36 +83,7 @@ export default function DashboardCharts({
           </CardContent>
         </Card>
       </Grid>
-      <Grid item xs={12} md={4}>
-        <Card sx={{ height: '100%' }}>
-          <CardContent>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              Upcoming Interviews
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-              {todayInterviewCount} interview(s) today are highlighted
-            </Typography>
-            <List dense>
-              {upcomingInterviews.map((item) => (
-                <ListItem
-                  key={item.id}
-                  disablePadding
-                  sx={{
-                    py: 0.5,
-                    px: 0.75,
-                    borderRadius: 1,
-                    bgcolor: item.today ? 'warning.light' : 'transparent',
-                  }}
-                >
-                  <ListItemText primary={item.title} secondary={item.description} />
-                  {item.today && <Chip label="Today" size="small" color="warning" variant="filled" />}
-                </ListItem>
-              ))}
-            </List>
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} md={4}>
+      <Grid item xs={12} md={6}>
         <Card sx={{ height: '100%' }}>
           <CardContent>
             <Typography variant="subtitle1" fontWeight={600} gutterBottom>
@@ -134,3 +102,5 @@ export default function DashboardCharts({
     </Grid>
   );
 }
+
+export default memo(DashboardCharts);

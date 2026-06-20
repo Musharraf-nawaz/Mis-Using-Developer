@@ -4,11 +4,13 @@ import com.aims.dto.asset.AssetAssignmentResponse;
 import com.aims.dto.asset.AssetMediaResponse;
 import com.aims.dto.asset.AssetResponse;
 import com.aims.dto.audit.AuditLogResponse;
+import com.aims.dto.interview.InterviewCalendarResponse;
 import com.aims.dto.interview.InterviewResponse;
 import com.aims.dto.notification.NotificationResponse;
 import com.aims.dto.user.UserResponse;
 import com.aims.entity.*;
 import com.aims.entity.enums.MediaType;
+import com.aims.util.AssetMediaUtils;
 
 import java.util.List;
 
@@ -71,6 +73,47 @@ public final class MapperUtils {
                 .remarks(asset.getRemarks())
                 .createdAt(asset.getCreatedAt())
                 .updatedAt(asset.getUpdatedAt())
+                .build();
+    }
+
+    public static AssetResponse toAssetSummaryResponse(Asset asset, List<AssetMedia> mediaList) {
+        return AssetResponse.builder()
+                .id(asset.getId())
+                .companyName(asset.getCompanyName())
+                .assetName(asset.getAssetName())
+                .associatedDeveloper(asset.getAssociatedDeveloper())
+                .projectName(asset.getProjectName())
+                .assetCategory(asset.getAssetCategory())
+                .assetType(asset.getAssetType())
+                .serialNumber(asset.getSerialNumber())
+                .assetTag(asset.getAssetTag())
+                .purchaseDate(asset.getPurchaseDate())
+                .purchaseCost(asset.getPurchaseCost())
+                .assignedToId(asset.getAssignedTo() != null ? asset.getAssignedTo().getId() : null)
+                .assignedToName(asset.getAssignedTo() != null ? asset.getAssignedTo().getFullName() : null)
+                .assignedDate(asset.getAssignedDate())
+                .returnDate(asset.getReturnDate())
+                .projectOffboarded(asset.getProjectOffboarded())
+                .status(asset.getStatus())
+                .warrantyExpiryDate(asset.getWarrantyExpiryDate())
+                .vendorName(asset.getVendorName())
+                .photoUrl(AssetMediaUtils.photoUrl(mediaList))
+                .videoUrl(AssetMediaUtils.videoUrl(mediaList))
+                .condition(asset.getCondition())
+                .remarks(asset.getRemarks())
+                .createdAt(asset.getCreatedAt())
+                .updatedAt(asset.getUpdatedAt())
+                .build();
+    }
+
+    public static InterviewCalendarResponse toCalendarResponse(Interview interview) {
+        return InterviewCalendarResponse.builder()
+                .id(interview.getId())
+                .candidateName(interview.getCandidateName())
+                .interviewDate(interview.getInterviewDate())
+                .interviewTime(interview.getInterviewTime())
+                .interviewRound(interview.getInterviewRound())
+                .interviewStatus(interview.getInterviewStatus())
                 .build();
     }
 

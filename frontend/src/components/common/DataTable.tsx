@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   Table,
   TableBody,
@@ -32,7 +33,7 @@ interface DataTableProps<T> {
   getRowId: (row: T) => string | number;
 }
 
-export default function DataTable<T>({
+function DataTable<T>({
   columns,
   rows,
   loading,
@@ -103,3 +104,5 @@ export default function DataTable<T>({
     </Paper>
   );
 }
+
+export default memo(DataTable) as typeof DataTable;

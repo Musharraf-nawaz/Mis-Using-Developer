@@ -5,6 +5,7 @@ import type {
   AuthResponse,
   DashboardData,
   Interview,
+  InterviewCalendar,
   InterviewRoundData,
   MediaType,
   Notification,
@@ -95,7 +96,7 @@ export const interviewApi = {
     api.patch<ApiResponse<Interview>>(`/interviews/${id}/complete`, { feedback }),
   delete: (id: number) => api.delete(`/interviews/${id}`),
   getCalendar: (start: string, end: string, status?: string) =>
-    api.get<ApiResponse<Interview[]>>('/interviews/calendar', { params: { start, end, status } }),
+    api.get<ApiResponse<InterviewCalendar[]>>('/interviews/calendar', { params: { start, end, status } }),
 };
 
 export const userApi = {

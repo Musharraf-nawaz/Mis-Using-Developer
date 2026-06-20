@@ -16,12 +16,14 @@ import com.aims.repository.UserRepository;
 import com.aims.security.UserPrincipal;
 import com.aims.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -37,19 +39,25 @@ public class ProjectService {
     public PageResponse<ProjectResponse> getAll(String search, ProjectStatus status, Pageable pageable) {
         UserPrincipal current = SecurityUtils.getCurrentUser();
         if (current != null && Role.USER.name().equals(current.getRole())) {
-            List<ProjectResponse> assigned = projectRepository.findByAssignedUserId(current.getId())
-                    .stream().map(p -> toResponse(p, false)).toList();
+            List<Project> assigned = projectRepository.findByAssignedUserId(current.getId());
+            Map<Long, List<Long>> userIdsByProject = loadUserIdsByProject(
+                    assigned.stream().map(Project::getId).toList());
+            List<ProjectResponse> content = assigned.stream()
+                    .map(p -> toResponse(p, false, userIdsByProject.getOrDefault(p.getId(), List.of())))
+                    .toList();
             return PageResponse.<ProjectResponse>builder()
-                    .content(assigned)
+                    .content(content)
                     .page(0)
-                    .size(assigned.size())
-                    .totalElements(assigned.size())
+                    .size(content.size())
+                    .totalElements(content.size())
                     .totalPages(1)
                     .last(true)
                     .build();
         }
-        return PageResponse.from(projectRepository.findWithFilters(search, status, pageable)
-                .map(p -> toResponse(p, true)));
+        Page<Project> page = projectRepository.findWithFilters(search, status, pageable);
+        Map<Long, List<Long>> userIdsByProject = loadUserIdsByProject(
+                page.getContent().stream().map(Project::getId).toList());
+        return PageResponse.from(page.map(p -> toResponse(p, true, userIdsByProject.getOrDefault(p.getId(), List.of()))));
     }
 
     @Transactional(readOnly = true)
@@ -58,11 +66,13 @@ public class ProjectService {
         boolean showBudget = isAdmin();
         if (!isAdmin()) {
             Long userId = SecurityUtils.getCurrentUserId();
-            boolean assigned = assignmentRepository.findByUserId(userId).stream()
-                    .anyMatch(a -> a.getProject().getId().equals(id));
-            if (!assigned) throw new ResourceNotFoundException("Project not found");
+            if (!assignmentRepository.existsByProjectIdAndUserId(id, userId)) {
+                throw new ResourceNotFoundException("Project not found");
+            }
         }
-        return toResponse(project, showBudget);
+        List<Long> userIds = assignmentRepository.findByProjectId(id).stream()
+                .map(a -> a.getUser().getId()).toList();
+        return toResponse(project, showBudget, userIds);
     }
 
     @Transactional
@@ -73,7 +83,7 @@ public class ProjectService {
         syncAssignments(project, request.getAssignedUserIds());
         auditService.log("PROJECT_CREATED", "PROJECT", project.getId(), null, project.getProjectName());
         notifyAssignedUsers(project, "New Project Assigned", "You have been assigned to project: " + project.getProjectName(), "PROJECT_ASSIGNED");
-        return toResponse(project, true);
+        return toResponse(project, true, request.getAssignedUserIds() != null ? request.getAssignedUserIds() : List.of());
     }
 
     @Transactional
@@ -85,7 +95,7 @@ public class ProjectService {
         syncAssignments(project, request.getAssignedUserIds());
         auditService.log("PROJECT_UPDATED", "PROJECT", id, null, project.getProjectName());
         notifyAssignedUsers(project, "Project Updated", "Project updated: " + project.getProjectName(), "PROJECT_UPDATED");
-        return toResponse(project, true);
+        return toResponse(project, true, request.getAssignedUserIds() != null ? request.getAssignedUserIds() : List.of());
     }
 
     @Transactional
@@ -95,6 +105,17 @@ public class ProjectService {
         assignmentRepository.deleteByProjectId(id);
         projectRepository.delete(project);
         auditService.log("PROJECT_DELETED", "PROJECT", id, project.getProjectName(), null);
+    }
+
+    private Map<Long, List<Long>> loadUserIdsByProject(List<Long> projectIds) {
+        if (projectIds.isEmpty()) return Map.of();
+        Map<Long, List<Long>> result = new HashMap<>();
+        for (Object[] row : assignmentRepository.findUserIdsByProjectIds(projectIds)) {
+            Long projectId = ((Number) row[0]).longValue();
+            Long userId = ((Number) row[1]).longValue();
+            result.computeIfAbsent(projectId, k -> new java.util.ArrayList<>()).add(userId);
+        }
+        return result;
     }
 
     private void syncAssignments(Project project, List<Long> userIds) {
@@ -128,9 +149,7 @@ public class ProjectService {
         return project;
     }
 
-    private ProjectResponse toResponse(Project project, boolean includeBudget) {
-        List<Long> userIds = assignmentRepository.findByProjectId(project.getId()).stream()
-                .map(a -> a.getUser().getId()).toList();
+    private ProjectResponse toResponse(Project project, boolean includeBudget, List<Long> userIds) {
         return ProjectResponse.builder()
                 .id(project.getId())
                 .projectName(project.getProjectName())

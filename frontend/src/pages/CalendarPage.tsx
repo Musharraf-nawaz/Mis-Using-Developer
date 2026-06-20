@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
@@ -12,10 +12,11 @@ import {
   List,
   ListItem,
   ListItemText,
+  Skeleton,
 } from '@mui/material';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { interviewApi } from '../api/services';
-import type { Interview } from '../types';
+import type { InterviewCalendar } from '../types';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -23,7 +24,7 @@ export default function CalendarPage() {
   const [view, setView] = useState<ViewMode>('week');
   const [currentDate] = useState(new Date());
 
-  const getDateRange = () => {
+  const { start, end } = useMemo(() => {
     if (view === 'day') {
       const d = format(currentDate, 'yyyy-MM-dd');
       return { start: d, end: d };
@@ -38,25 +39,36 @@ export default function CalendarPage() {
       start: format(startOfMonth(currentDate), 'yyyy-MM-dd'),
       end: format(endOfMonth(currentDate), 'yyyy-MM-dd'),
     };
-  };
-
-  const { start, end } = getDateRange();
+  }, [view, currentDate]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['calendar', start, end],
     queryFn: () => interviewApi.getCalendar(start, end),
+    staleTime: 5 * 60 * 1000,
   });
 
   const interviews = data?.data?.data ?? [];
 
-  const days = view === 'month'
-    ? eachDayOfInterval({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) })
-  : view === 'week'
-    ? eachDayOfInterval({ start: startOfWeek(currentDate), end: endOfWeek(currentDate) })
-    : [currentDate];
+  const interviewsByDay = useMemo(() => {
+    const map = new Map<string, InterviewCalendar[]>();
+    for (const interview of interviews) {
+      const key = interview.interviewDate;
+      const list = map.get(key);
+      if (list) list.push(interview);
+      else map.set(key, [interview]);
+    }
+    return map;
+  }, [interviews]);
 
-  const getInterviewsForDay = (day: Date) =>
-    interviews.filter((i: Interview) => i.interviewDate === format(day, 'yyyy-MM-dd'));
+  const days = useMemo(() => {
+    if (view === 'month') {
+      return eachDayOfInterval({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) });
+    }
+    if (view === 'week') {
+      return eachDayOfInterval({ start: startOfWeek(currentDate), end: endOfWeek(currentDate) });
+    }
+    return [currentDate];
+  }, [view, currentDate]);
 
   return (
     <Box>
@@ -75,13 +87,26 @@ export default function CalendarPage() {
       </Box>
 
       {isLoading ? (
-        <Typography>Loading calendar...</Typography>
+        <Grid container spacing={2}>
+          {Array.from({ length: view === 'month' ? 12 : 7 }).map((_, i) => (
+            <Grid item xs={12} sm={4} key={i}>
+              <Skeleton variant="rounded" height={120} />
+            </Grid>
+          ))}
+        </Grid>
       ) : (
         <Grid container spacing={2}>
           {days.map((day) => {
-            const dayInterviews = getInterviewsForDay(day);
+            const dayKey = format(day, 'yyyy-MM-dd');
+            const dayInterviews = interviewsByDay.get(dayKey) ?? [];
             return (
-              <Grid item xs={12} sm={view === 'month' ? 4 : 12} md={view === 'day' ? 12 : view === 'week' ? 12 / 7 : 4} key={day.toISOString()}>
+              <Grid
+                item
+                xs={12}
+                sm={view === 'month' ? 4 : 12}
+                md={view === 'day' ? 12 : view === 'week' ? 12 / 7 : 4}
+                key={dayKey}
+              >
                 <Card variant="outlined" sx={{ minHeight: 120 }}>
                   <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Typography variant="subtitle2" fontWeight={600} gutterBottom>
@@ -91,7 +116,7 @@ export default function CalendarPage() {
                       )}
                     </Typography>
                     <List dense disablePadding>
-                      {dayInterviews.map((i: Interview) => (
+                      {dayInterviews.map((i) => (
                         <ListItem key={i.id} disablePadding sx={{ py: 0.25 }}>
                           <ListItemText
                             primary={i.candidateName}

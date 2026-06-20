@@ -52,4 +52,7 @@ public interface InterviewRepository extends JpaRepository<Interview, Long> {
     List<Interview> findUpcomingByStatusFromDate(@Param("status") InterviewStatus status,
                                                  @Param("fromDate") LocalDate fromDate,
                                                  Pageable pageable);
+
+    @Query("SELECT i.interviewStatus, COUNT(i) FROM Interview i GROUP BY i.interviewStatus")
+    List<Object[]> countByStatusGrouped();
 }

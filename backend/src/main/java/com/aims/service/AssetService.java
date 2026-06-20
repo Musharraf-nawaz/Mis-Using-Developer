@@ -58,7 +58,7 @@ public class AssetService {
         Map<Long, List<AssetMedia>> mediaByAsset = assetIds.isEmpty()
                 ? Map.of()
                 : AssetMediaUtils.groupByAssetId(assetMediaRepository.findByAssetIdIn(assetIds));
-        return PageResponse.from(page.map(a -> MapperUtils.toAssetResponse(
+        return PageResponse.from(page.map(a -> MapperUtils.toAssetSummaryResponse(
                 a, mediaByAsset.getOrDefault(a.getId(), List.of()))));
     }
 

@@ -26,7 +26,7 @@ public class InterviewReminderService {
     private final NotificationRepository notificationRepository;
     private final NotificationService notificationService;
 
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "0 */5 * * * *")
     public void sendFiveMinuteReminders() {
         LocalDateTime now = LocalDateTime.now();
 

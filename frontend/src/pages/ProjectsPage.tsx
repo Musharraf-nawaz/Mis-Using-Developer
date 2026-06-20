@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   Box,
@@ -39,6 +39,10 @@ export default function ProjectsPage() {
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
+
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedSearch]);
   const [open, setOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
   const { register, handleSubmit, reset, control } = useForm<Partial<Project>>();

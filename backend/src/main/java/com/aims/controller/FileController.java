@@ -30,6 +30,7 @@ public class FileController {
         }
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400, immutable")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
