@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -36,10 +36,10 @@ import {
   Person,
   Folder as ProjectIcon,
 } from '@mui/icons-material';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
-import { assetApi, dashboardApi, interviewApi, notificationApi, wsBaseUrl } from '../../api/services';
+import { notificationApi } from '../../api/services';
 import NotificationPanel from '../notifications/NotificationPanel';
 import type { Role } from '../../types';
 
@@ -74,53 +74,25 @@ export default function MainLayout() {
   const { mode, toggleMode } = useThemeMode();
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
-  const wsRef = useRef<WebSocket | null>(null);
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-unread'],
     queryFn: () => notificationApi.getUnreadCount(),
-    refetchInterval: document.hidden ? false : 30000,
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
-
-  useEffect(() => {
-    if (!user?.userId) return;
-    const base = wsBaseUrl().replace(/^http/, 'ws');
-    try {
-      const ws = new WebSocket(`${base}/ws-notifications/websocket`);
-      wsRef.current = ws;
-      ws.onmessage = () => {
-        queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
-        queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      };
-      return () => ws.close();
-    } catch {
-      return undefined;
-    }
-  }, [user?.userId, queryClient]);
-
-  const prefetchRoute = (path: string) => {
-    if (path === '/dashboard') {
-      queryClient.prefetchQuery({ queryKey: ['dashboard'], queryFn: () => dashboardApi.get() });
-    }
-    if (path === '/assets') {
-      queryClient.prefetchQuery({
-        queryKey: ['assets', 0, 10, '', ''],
-        queryFn: () => assetApi.getAll({ page: 0, size: 10 }),
-      });
-    }
-    if (path === '/interviews') {
-      queryClient.prefetchQuery({
-        queryKey: ['interviews', 0, 10, ''],
-        queryFn: () => interviewApi.getAll({ page: 0, size: 10 }),
-      });
-    }
-  };
 
   const unreadCount = unreadData?.data?.data?.count ?? 0;
 
-  const filteredNav = navItems.filter(
-    (item) => !item.roles || item.roles.some((r) => hasRole(r))
+  const filteredNav = useMemo(
+    () => navItems.filter((item) => !item.roles || item.roles.some((r) => hasRole(r))),
+    [hasRole]
+  );
+
+  const pageTitle = useMemo(
+    () => filteredNav.find((n) => n.path === location.pathname)?.label || 'Mis-Using Developer',
+    [filteredNav, location.pathname]
   );
 
   const drawer = (
@@ -138,7 +110,6 @@ export default function MainLayout() {
           <ListItemButton
             key={item.path}
             selected={location.pathname === item.path}
-            onMouseEnter={() => prefetchRoute(item.path)}
             onClick={() => {
               navigate(item.path);
               if (isMobile) setMobileOpen(false);
@@ -179,7 +150,7 @@ export default function MainLayout() {
             </IconButton>
           )}
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            {filteredNav.find((n) => n.path === location.pathname)?.label || 'Mis-Using Developer'}
+            {pageTitle}
           </Typography>
           <IconButton onClick={toggleMode} size="small">
             {mode === 'light' ? <Brightness4 /> : <Brightness7 />}

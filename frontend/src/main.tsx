@@ -9,15 +9,16 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { registerSW } from 'virtual:pwa-register';
 
-registerSW({ immediate: true });
+registerSW({ immediate: false });
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000,
-      gcTime: 10 * 60 * 1000,
+      refetchOnReconnect: false,
+      staleTime: 10 * 60 * 1000,
+      gcTime: 15 * 60 * 1000,
     },
   },
 });

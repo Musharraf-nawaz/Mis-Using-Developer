@@ -27,4 +27,7 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     @Query("SELECT COALESCE(SUM(p.budget), 0) FROM Project p")
     BigDecimal sumBudget();
+
+    @Query("SELECT COALESCE(SUM(p.candidateWorkingCount), 0), COALESCE(SUM(p.interviewCandidateCount), 0), COALESCE(SUM(p.onboardedCandidateCount), 0) FROM Project p")
+    Object[] sumCandidateCounts();
 }

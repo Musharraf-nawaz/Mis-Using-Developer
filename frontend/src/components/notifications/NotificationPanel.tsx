@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { Close, DoneAll } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { notificationApi } from '../../api/services';
 import type { Notification } from '../../types';
 
@@ -42,7 +43,14 @@ export default function NotificationPanel({ anchorEl, onClose }: Props) {
     queryKey: ['notifications'],
     queryFn: () => notificationApi.getAll(0, 30),
     enabled: open,
+    staleTime: 2 * 60 * 1000,
   });
+
+  useEffect(() => {
+    if (open) {
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
+    }
+  }, [open, queryClient]);
 
   const notifications = data?.data?.data?.content ?? [];
 

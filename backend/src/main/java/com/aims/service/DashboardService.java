@@ -1,6 +1,7 @@
 package com.aims.service;
 
 import com.aims.dto.dashboard.DashboardResponse;
+import com.aims.entity.AssetMedia;
 import com.aims.entity.Asset;
 import com.aims.entity.AssetAssignment;
 import com.aims.entity.Interview;
@@ -16,6 +17,7 @@ import com.aims.repository.AssetRepository;
 import com.aims.repository.InterviewRepository;
 import com.aims.repository.ProjectRepository;
 import com.aims.security.UserPrincipal;
+import com.aims.util.AssetMediaUtils;
 import com.aims.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -66,15 +68,10 @@ public class DashboardService {
         List<DashboardResponse.AssignedAssetItem> assignedAssets = List.of();
 
         if (isAdmin) {
-            long working = projectRepository.findAll().stream()
-                    .mapToLong(p -> p.getCandidateWorkingCount() != null ? p.getCandidateWorkingCount() : 0)
-                    .sum();
-            long interviewCand = projectRepository.findAll().stream()
-                    .mapToLong(p -> p.getInterviewCandidateCount() != null ? p.getInterviewCandidateCount() : 0)
-                    .sum();
-            long onboarded = projectRepository.findAll().stream()
-                    .mapToLong(p -> p.getOnboardedCandidateCount() != null ? p.getOnboardedCandidateCount() : 0)
-                    .sum();
+            Object[] sums = projectRepository.sumCandidateCounts();
+            long working = sums[0] != null ? ((Number) sums[0]).longValue() : 0;
+            long interviewCand = sums[1] != null ? ((Number) sums[1]).longValue() : 0;
+            long onboarded = sums[2] != null ? ((Number) sums[2]).longValue() : 0;
             projectStats = DashboardResponse.ProjectStats.builder()
                     .totalProjects(projectRepository.count())
                     .activeProjects(projectRepository.countByStatus(ProjectStatus.ACTIVE))
@@ -102,9 +99,7 @@ public class DashboardService {
                             .remarks(p.getRemarks())
                             .build())
                     .toList();
-            assignedAssets = assetRepository.findByAssignedToId(current.getId()).stream()
-                    .map(this::toAssignedAsset)
-                    .toList();
+            assignedAssets = buildAssignedAssets(assetRepository.findByAssignedToId(current.getId()));
             userStats = DashboardResponse.UserDashboardStats.builder()
                     .assignedProjects(myProjects.size())
                     .workingCandidates(working)
@@ -174,23 +169,25 @@ public class DashboardService {
                 .build();
     }
 
-    private DashboardResponse.AssignedAssetItem toAssignedAsset(Asset asset) {
-        var media = assetMediaRepository.findByAssetId(asset.getId());
-        String photoUrl = null;
-        String videoUrl = null;
-        for (var m : media) {
-            if (m.getMediaType().name().equals("PHOTO")) photoUrl = m.getFileUrl();
-            if (m.getMediaType().name().equals("VIDEO")) videoUrl = m.getFileUrl();
-        }
-        return DashboardResponse.AssignedAssetItem.builder()
-                .id(asset.getId())
-                .assetName(asset.getAssetName())
-                .serialNumber(asset.getSerialNumber())
-                .assignedDate(asset.getAssignedDate() != null ? asset.getAssignedDate().toString() : null)
-                .status(asset.getStatus())
-                .photoUrl(photoUrl)
-                .videoUrl(videoUrl)
-                .build();
+    private List<DashboardResponse.AssignedAssetItem> buildAssignedAssets(List<Asset> assets) {
+        if (assets.isEmpty()) return List.of();
+        List<Long> assetIds = assets.stream().map(Asset::getId).toList();
+        Map<Long, List<AssetMedia>> mediaByAsset = AssetMediaUtils.groupByAssetId(
+                assetMediaRepository.findByAssetIdIn(assetIds));
+        return assets.stream()
+                .map(asset -> {
+                    List<AssetMedia> media = mediaByAsset.getOrDefault(asset.getId(), List.of());
+                    return DashboardResponse.AssignedAssetItem.builder()
+                            .id(asset.getId())
+                            .assetName(asset.getAssetName())
+                            .serialNumber(asset.getSerialNumber())
+                            .assignedDate(asset.getAssignedDate() != null ? asset.getAssignedDate().toString() : null)
+                            .status(asset.getStatus())
+                            .photoUrl(AssetMediaUtils.photoUrl(media))
+                            .videoUrl(AssetMediaUtils.videoUrl(media))
+                            .build();
+                })
+                .toList();
     }
 
     private DashboardResponse.ActivityItem toAssignmentActivity(AssetAssignment aa) {

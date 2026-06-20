@@ -35,7 +35,7 @@ export default function DashboardPage() {
   const { hasRole } = useAuth();
   const isAdmin = hasRole('ADMIN');
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => dashboardApi.get(),
     placeholderData: keepPreviousData,
@@ -55,7 +55,7 @@ export default function DashboardPage() {
   const todayInterviews = dashboard.upcomingInterviews.filter((item) => item.today);
 
   return (
-    <Box sx={{ opacity: isFetching ? 0.85 : 1, transition: 'opacity 0.2s' }}>
+    <Box>
       <Typography variant="h5" fontWeight={700} gutterBottom>
         {isAdmin ? 'Admin Dashboard' : 'My Dashboard'}
       </Typography>

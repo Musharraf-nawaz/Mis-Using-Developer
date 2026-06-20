@@ -134,7 +134,7 @@ export default function ProjectsPage() {
   ];
 
   return (
-    <Box sx={{ opacity: isFetching ? 0.85 : 1 }}>
+    <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Box>
           <Typography variant="h5" fontWeight={700}>

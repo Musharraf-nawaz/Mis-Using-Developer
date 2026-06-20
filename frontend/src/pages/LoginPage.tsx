@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Card,
@@ -16,6 +17,7 @@ import { Visibility, VisibilityOff, Business } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
+import { dashboardApi } from '../api/services';
 
 interface LoginForm {
   email: string;
@@ -28,6 +30,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     defaultValues: { email: 'admin@aims.com', password: 'Admin@123' },
   });
@@ -37,6 +40,7 @@ export default function LoginPage() {
     setError('');
     try {
       await login(data.email, data.password);
+      queryClient.prefetchQuery({ queryKey: ['dashboard'], queryFn: () => dashboardApi.get() });
       toast.success('Welcome to Mis-Using Developer');
       navigate('/dashboard');
     } catch (err: unknown) {

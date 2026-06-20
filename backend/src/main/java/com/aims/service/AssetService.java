@@ -22,6 +22,7 @@ import com.aims.repository.UserRepository;
 import com.aims.security.UserPrincipal;
 import com.aims.util.MapperUtils;
 import com.aims.util.SecurityUtils;
+import com.aims.util.AssetMediaUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -52,7 +54,12 @@ public class AssetService {
             assignedToId = current.getId();
         }
         Page<Asset> page = assetRepository.findWithFilters(search, company, assetType, status, assignedToId, pageable);
-        return PageResponse.from(page.map(a -> MapperUtils.toAssetResponse(a, assetMediaRepository.findByAssetId(a.getId()))));
+        List<Long> assetIds = page.getContent().stream().map(Asset::getId).toList();
+        Map<Long, List<AssetMedia>> mediaByAsset = assetIds.isEmpty()
+                ? Map.of()
+                : AssetMediaUtils.groupByAssetId(assetMediaRepository.findByAssetIdIn(assetIds));
+        return PageResponse.from(page.map(a -> MapperUtils.toAssetResponse(
+                a, mediaByAsset.getOrDefault(a.getId(), List.of()))));
     }
 
     @Transactional(readOnly = true)

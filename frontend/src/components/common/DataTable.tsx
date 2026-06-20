@@ -55,8 +55,8 @@ export default function DataTable<T>({
   }
 
   return (
-    <Paper variant="outlined" sx={{ position: 'relative', opacity: fetching ? 0.72 : 1, transition: 'opacity 0.2s' }}>
-      {fetching && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0 }} />}
+    <Paper variant="outlined" sx={{ position: 'relative' }}>
+      {fetching && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1 }} />}
       <TableContainer>
         <Table size="small">
           <TableHead>
