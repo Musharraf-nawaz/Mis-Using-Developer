@@ -43,9 +43,12 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
     @Query("SELECT a.status as status, COUNT(a) as count FROM Asset a GROUP BY a.status")
     List<Object[]> countByStatusGrouped();
 
-    @Query("SELECT FUNCTION('TO_CHAR', a.assignedDate, 'YYYY-MM') as month, COUNT(a) as count " +
-           "FROM Asset a WHERE a.assignedDate IS NOT NULL " +
-           "AND a.assignedDate >= :fromDate GROUP BY FUNCTION('TO_CHAR', a.assignedDate, 'YYYY-MM') " +
-           "ORDER BY month")
+    @Query(value = """
+            SELECT TO_CHAR(a.assigned_date, 'YYYY-MM') AS month, COUNT(*) AS cnt
+            FROM assets a
+            WHERE a.assigned_date IS NOT NULL AND a.assigned_date >= :fromDate
+            GROUP BY TO_CHAR(a.assigned_date, 'YYYY-MM')
+            ORDER BY month
+            """, nativeQuery = true)
     List<Object[]> countAssignmentsByMonth(@Param("fromDate") java.time.LocalDate fromDate);
 }

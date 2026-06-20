@@ -20,6 +20,7 @@ import com.aims.security.UserPrincipal;
 import com.aims.util.AssetMediaUtils;
 import com.aims.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
@@ -72,18 +74,22 @@ public class DashboardService {
         List<DashboardResponse.AssignedAssetItem> assignedAssets = List.of();
 
         if (isAdmin) {
-            Object[] sums = projectRepository.sumCandidateCounts();
-            long working = sums != null && sums.length > 0 && sums[0] != null ? ((Number) sums[0]).longValue() : 0;
-            long interviewCand = sums != null && sums.length > 1 && sums[1] != null ? ((Number) sums[1]).longValue() : 0;
-            long onboarded = sums != null && sums.length > 2 && sums[2] != null ? ((Number) sums[2]).longValue() : 0;
-            projectStats = DashboardResponse.ProjectStats.builder()
-                    .totalProjects(projectRepository.count())
-                    .activeProjects(projectRepository.countByStatus(ProjectStatus.ACTIVE))
-                    .totalBudget(projectRepository.sumBudget())
-                    .workingCandidates(working)
-                    .interviewCandidates(interviewCand)
-                    .onboardedCandidates(onboarded)
-                    .build();
+            try {
+                Object[] sums = projectRepository.sumCandidateCounts();
+                long working = sums != null && sums.length > 0 && sums[0] != null ? ((Number) sums[0]).longValue() : 0;
+                long interviewCand = sums != null && sums.length > 1 && sums[1] != null ? ((Number) sums[1]).longValue() : 0;
+                long onboarded = sums != null && sums.length > 2 && sums[2] != null ? ((Number) sums[2]).longValue() : 0;
+                projectStats = DashboardResponse.ProjectStats.builder()
+                        .totalProjects(projectRepository.count())
+                        .activeProjects(projectRepository.countByStatus(ProjectStatus.ACTIVE))
+                        .totalBudget(projectRepository.sumBudget())
+                        .workingCandidates(working)
+                        .interviewCandidates(interviewCand)
+                        .onboardedCandidates(onboarded)
+                        .build();
+            } catch (Exception ex) {
+                log.warn("Failed to load admin project stats: {}", ex.getMessage());
+            }
         } else if (current != null) {
             List<Project> myProjects = projectRepository.findByAssignedUserId(current.getId());
             long working = myProjects.stream()
@@ -114,48 +120,13 @@ public class DashboardService {
                     .build();
         }
 
-        List<Map<String, Object>> assetStatusDistribution = new ArrayList<>();
-        assetRepository.countByStatusGrouped().forEach(row -> {
-            Map<String, Object> item = new HashMap<>();
-            item.put("status", row[0] != null ? row[0].toString() : "UNKNOWN");
-            item.put("count", row[1]);
-            assetStatusDistribution.add(item);
-        });
+        List<Map<String, Object>> assetStatusDistribution = safeAssetStatusDistribution();
 
-        List<Map<String, Object>> monthlyInterviewStats = new ArrayList<>();
-        interviewRepository.countByMonthAndStatus(today.minusMonths(6)).forEach(row -> {
-            Map<String, Object> item = new HashMap<>();
-            item.put("month", row[0]);
-            item.put("status", row[1] != null ? row[1].toString() : "UNKNOWN");
-            item.put("count", row[2]);
-            monthlyInterviewStats.add(item);
-        });
-
-        List<Map<String, Object>> assetAllocationTrends = new ArrayList<>();
-        assetRepository.countAssignmentsByMonth(today.minusMonths(6)).forEach(row -> {
-            Map<String, Object> item = new HashMap<>();
-            item.put("month", row[0]);
-            item.put("count", row[1]);
-            assetAllocationTrends.add(item);
-        });
-
-        List<DashboardResponse.ActivityItem> recentAssignments = assignmentRepository
-                .findRecentByStatus(AssignmentStatus.ACTIVE, PageRequest.of(0, 5))
-                .stream()
-                .map(this::toAssignmentActivity)
-                .toList();
-
-        List<DashboardResponse.ActivityItem> recentReturns = assignmentRepository
-                .findRecentByStatus(AssignmentStatus.RETURNED, PageRequest.of(0, 5))
-                .stream()
-                .map(this::toAssignmentActivity)
-                .toList();
-
-        List<DashboardResponse.ActivityItem> upcomingInterviews = interviewRepository
-                .findUpcomingByStatusFromDate(InterviewStatus.SCHEDULED, today, PageRequest.of(0, 8))
-                .stream()
-                .map(this::toInterviewActivity)
-                .toList();
+        List<Map<String, Object>> monthlyInterviewStats = safeMonthlyInterviewStats(today);
+        List<Map<String, Object>> assetAllocationTrends = safeAssetAllocationTrends(today);
+        List<DashboardResponse.ActivityItem> recentAssignments = safeRecentAssignments();
+        List<DashboardResponse.ActivityItem> recentReturns = safeRecentReturns();
+        List<DashboardResponse.ActivityItem> upcomingInterviews = safeUpcomingInterviews(today);
 
         return DashboardResponse.builder()
                 .admin(isAdmin)
@@ -195,13 +166,103 @@ public class DashboardService {
                 .toList();
     }
 
+    private List<Map<String, Object>> safeAssetStatusDistribution() {
+        try {
+            List<Map<String, Object>> distribution = new ArrayList<>();
+            assetRepository.countByStatusGrouped().forEach(row -> {
+                Map<String, Object> item = new HashMap<>();
+                item.put("status", row[0] != null ? row[0].toString() : "UNKNOWN");
+                item.put("count", row[1]);
+                distribution.add(item);
+            });
+            return distribution;
+        } catch (Exception ex) {
+            log.warn("Failed to load asset status distribution: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<Map<String, Object>> safeMonthlyInterviewStats(LocalDate today) {
+        try {
+            List<Map<String, Object>> stats = new ArrayList<>();
+            interviewRepository.countByMonthAndStatus(today.minusMonths(6)).forEach(row -> {
+                Map<String, Object> item = new HashMap<>();
+                item.put("month", row[0]);
+                item.put("status", row[1] != null ? row[1].toString() : "UNKNOWN");
+                item.put("count", row[2]);
+                stats.add(item);
+            });
+            return stats;
+        } catch (Exception ex) {
+            log.warn("Failed to load monthly interview stats: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<Map<String, Object>> safeAssetAllocationTrends(LocalDate today) {
+        try {
+            List<Map<String, Object>> trends = new ArrayList<>();
+            assetRepository.countAssignmentsByMonth(today.minusMonths(6)).forEach(row -> {
+                Map<String, Object> item = new HashMap<>();
+                item.put("month", row[0]);
+                item.put("count", row[1]);
+                trends.add(item);
+            });
+            return trends;
+        } catch (Exception ex) {
+            log.warn("Failed to load asset allocation trends: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<DashboardResponse.ActivityItem> safeRecentAssignments() {
+        try {
+            return assignmentRepository
+                    .findRecentByStatus(AssignmentStatus.ACTIVE, PageRequest.of(0, 5))
+                    .stream()
+                    .map(this::toAssignmentActivity)
+                    .toList();
+        } catch (Exception ex) {
+            log.warn("Failed to load recent assignments: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<DashboardResponse.ActivityItem> safeRecentReturns() {
+        try {
+            return assignmentRepository
+                    .findRecentByStatus(AssignmentStatus.RETURNED, PageRequest.of(0, 5))
+                    .stream()
+                    .map(this::toAssignmentActivity)
+                    .toList();
+        } catch (Exception ex) {
+            log.warn("Failed to load recent returns: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<DashboardResponse.ActivityItem> safeUpcomingInterviews(LocalDate today) {
+        try {
+            return interviewRepository
+                    .findUpcomingByStatusFromDate(InterviewStatus.SCHEDULED, today, PageRequest.of(0, 8))
+                    .stream()
+                    .map(this::toInterviewActivity)
+                    .toList();
+        } catch (Exception ex) {
+            log.warn("Failed to load upcoming interviews: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
     private DashboardResponse.ActivityItem toAssignmentActivity(AssetAssignment aa) {
         return DashboardResponse.ActivityItem.builder()
                 .id(aa.getId())
                 .title(aa.getAsset().getAssetName())
                 .description(aa.getEmployeeName() + " - " + aa.getAssignedDate())
                 .type("ASSIGNMENT")
-                .timestamp(aa.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .timestamp(aa.getCreatedAt() != null
+                        ? aa.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                        : "")
                 .build();
     }
 

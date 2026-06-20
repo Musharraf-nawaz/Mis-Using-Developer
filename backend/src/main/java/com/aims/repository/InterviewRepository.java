@@ -39,9 +39,13 @@ public interface InterviewRepository extends JpaRepository<Interview, Long> {
 
     long countByInterviewDateAndInterviewStatus(LocalDate date, InterviewStatus status);
 
-    @Query("SELECT FUNCTION('TO_CHAR', i.interviewDate, 'YYYY-MM') as month, i.interviewStatus as status, COUNT(i) " +
-           "FROM Interview i WHERE i.interviewDate >= :fromDate " +
-           "GROUP BY FUNCTION('TO_CHAR', i.interviewDate, 'YYYY-MM'), i.interviewStatus ORDER BY month")
+    @Query(value = """
+            SELECT TO_CHAR(i.interview_date, 'YYYY-MM') AS month, i.interview_status AS status, COUNT(*) AS cnt
+            FROM interviews i
+            WHERE i.interview_date >= :fromDate
+            GROUP BY TO_CHAR(i.interview_date, 'YYYY-MM'), i.interview_status
+            ORDER BY month
+            """, nativeQuery = true)
     List<Object[]> countByMonthAndStatus(@Param("fromDate") LocalDate fromDate);
 
     List<Interview> findByInterviewDateAndInterviewStatusOrderByInterviewTimeAsc(
