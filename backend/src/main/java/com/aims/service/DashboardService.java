@@ -21,6 +21,7 @@ import com.aims.util.AssetMediaUtils;
 import com.aims.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +47,7 @@ public class DashboardService {
     private final ProjectRepository projectRepository;
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "dashboard", key = "T(com.aims.util.SecurityUtils).dashboardCacheKey()")
     public DashboardResponse getDashboard() {
         try {
             return buildDashboard();
@@ -60,21 +62,27 @@ public class DashboardService {
         UserPrincipal current = SecurityUtils.getCurrentUser();
         boolean isAdmin = current != null && Role.ADMIN.name().equals(current.getRole());
 
+        Map<String, Long> assetCounts = loadAssetCounts();
+        long totalAssets = assetCounts.values().stream().mapToLong(Long::longValue).sum();
+
         DashboardResponse.AssetStats assetStats = DashboardResponse.AssetStats.builder()
-                .totalAssets(assetRepository.count())
-                .availableAssets(assetRepository.countByStatus(AssetStatus.AVAILABLE))
-                .assignedAssets(assetRepository.countByStatus(AssetStatus.ASSIGNED))
-                .returnedAssets(assetRepository.countByStatus(AssetStatus.RETURNED))
-                .damagedAssets(assetRepository.countByStatus(AssetStatus.DAMAGED))
+                .totalAssets(totalAssets)
+                .availableAssets(assetCounts.getOrDefault(AssetStatus.AVAILABLE.name(), 0L))
+                .assignedAssets(assetCounts.getOrDefault(AssetStatus.ASSIGNED.name(), 0L))
+                .returnedAssets(assetCounts.getOrDefault(AssetStatus.RETURNED.name(), 0L))
+                .damagedAssets(assetCounts.getOrDefault(AssetStatus.DAMAGED.name(), 0L))
                 .build();
+
+        Map<String, Long> interviewCounts = loadInterviewCounts();
+        long scheduled = interviewCounts.getOrDefault(InterviewStatus.SCHEDULED.name(), 0L);
 
         DashboardResponse.InterviewStats interviewStats = DashboardResponse.InterviewStats.builder()
                 .todayInterviews(interviewRepository.countByInterviewDateAndInterviewStatus(
                         today, InterviewStatus.SCHEDULED))
-                .upcomingInterviews(interviewRepository.countByInterviewStatus(InterviewStatus.SCHEDULED))
-                .completedInterviews(interviewRepository.countByInterviewStatus(InterviewStatus.COMPLETED))
-                .cancelledInterviews(interviewRepository.countByInterviewStatus(InterviewStatus.CANCELLED))
-                .scheduledInterviews(interviewRepository.countByInterviewStatus(InterviewStatus.SCHEDULED))
+                .upcomingInterviews(scheduled)
+                .completedInterviews(interviewCounts.getOrDefault(InterviewStatus.COMPLETED.name(), 0L))
+                .cancelledInterviews(interviewCounts.getOrDefault(InterviewStatus.CANCELLED.name(), 0L))
+                .scheduledInterviews(scheduled)
                 .build();
 
         DashboardResponse.ProjectStats projectStats = null;
@@ -138,7 +146,14 @@ public class DashboardService {
             }
         }
 
-        List<Map<String, Object>> assetStatusDistribution = safeAssetStatusDistribution();
+        List<Map<String, Object>> assetStatusDistribution = assetCounts.entrySet().stream()
+                .map(e -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("status", e.getKey());
+                    item.put("count", e.getValue());
+                    return item;
+                })
+                .toList();
 
         List<Map<String, Object>> monthlyInterviewStats = safeMonthlyInterviewStats(today);
         List<Map<String, Object>> assetAllocationTrends = safeAssetAllocationTrends(today);
@@ -209,20 +224,32 @@ public class DashboardService {
                 .toList();
     }
 
-    private List<Map<String, Object>> safeAssetStatusDistribution() {
+    private Map<String, Long> loadAssetCounts() {
+        Map<String, Long> counts = new HashMap<>();
         try {
-            List<Map<String, Object>> distribution = new ArrayList<>();
-            assetRepository.countByStatusGrouped().forEach(row -> {
-                Map<String, Object> item = new HashMap<>();
-                item.put("status", row[0] != null ? row[0].toString() : "UNKNOWN");
-                item.put("count", row[1]);
-                distribution.add(item);
-            });
-            return distribution;
+            for (Object[] row : assetRepository.countByStatusGrouped()) {
+                if (row[0] != null && row[1] instanceof Number) {
+                    counts.put(row[0].toString(), ((Number) row[1]).longValue());
+                }
+            }
         } catch (Exception ex) {
-            log.warn("Failed to load asset status distribution: {}", ex.getMessage());
-            return List.of();
+            log.warn("Failed to load asset counts: {}", ex.getMessage());
         }
+        return counts;
+    }
+
+    private Map<String, Long> loadInterviewCounts() {
+        Map<String, Long> counts = new HashMap<>();
+        try {
+            for (Object[] row : interviewRepository.countByStatusGrouped()) {
+                if (row[0] != null && row[1] instanceof Number) {
+                    counts.put(row[0].toString(), ((Number) row[1]).longValue());
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to load interview counts: {}", ex.getMessage());
+        }
+        return counts;
     }
 
     private List<Map<String, Object>> safeMonthlyInterviewStats(LocalDate today) {

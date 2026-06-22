@@ -4,6 +4,7 @@ import com.aims.entity.Asset;
 import com.aims.entity.enums.AssetStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -27,6 +28,7 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
            "AND (:assetType IS NULL OR a.assetType = :assetType) " +
            "AND (:status IS NULL OR a.status = :status) " +
            "AND (:assignedToId IS NULL OR a.assignedTo.id = :assignedToId)")
+    @EntityGraph(attributePaths = {"assignedTo"})
     Page<Asset> findWithFilters(@Param("search") String search,
                                 @Param("company") String company,
                                 @Param("assetType") String assetType,

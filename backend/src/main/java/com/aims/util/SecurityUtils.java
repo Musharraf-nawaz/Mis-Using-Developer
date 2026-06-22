@@ -20,4 +20,9 @@ public final class SecurityUtils {
         UserPrincipal user = getCurrentUser();
         return user != null ? user.getId() : null;
     }
+
+    public static String dashboardCacheKey() {
+        Long id = getCurrentUserId();
+        return id != null ? "user-" + id : "guest";
+    }
 }

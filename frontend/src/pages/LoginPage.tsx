@@ -18,6 +18,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { dashboardApi } from '../api/services';
+import { useBackendWarmup } from '../hooks/useBackendWarmup';
 
 interface LoginForm {
   email: string;
@@ -25,6 +26,7 @@ interface LoginForm {
 }
 
 export default function LoginPage() {
+  useBackendWarmup();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

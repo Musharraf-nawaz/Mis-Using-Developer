@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -40,8 +40,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
 import { notificationApi } from '../../api/services';
-import NotificationPanel from '../notifications/NotificationPanel';
+import { useBackendWarmup } from '../../hooks/useBackendWarmup';
 import type { Role } from '../../types';
+
+const NotificationPanel = lazy(() => import('../notifications/NotificationPanel'));
 
 const DRAWER_WIDTH = 260;
 
@@ -65,6 +67,7 @@ const navItems: NavItem[] = [
 ];
 
 export default function MainLayout() {
+  useBackendWarmup();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -94,6 +97,12 @@ export default function MainLayout() {
     () => filteredNav.find((n) => n.path === location.pathname)?.label || 'Mis-Using Developer',
     [filteredNav, location.pathname]
   );
+
+  useEffect(() => {
+    void import('../../pages/DashboardPage');
+    void import('../../pages/AssetsPage');
+    void import('../../pages/InterviewsPage');
+  }, []);
 
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -164,7 +173,9 @@ export default function MainLayout() {
               <NotifIcon />
             </Badge>
           </IconButton>
-          <NotificationPanel anchorEl={notifAnchor} onClose={() => setNotifAnchor(null)} />
+          <Suspense fallback={null}>
+            <NotificationPanel anchorEl={notifAnchor} onClose={() => setNotifAnchor(null)} />
+          </Suspense>
           <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ ml: 1 }}>
             <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 14 }}>
               {user?.fullName?.charAt(0) || 'U'}

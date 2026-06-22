@@ -4,6 +4,7 @@ import com.aims.entity.Interview;
 import com.aims.entity.enums.InterviewStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,6 +23,7 @@ public interface InterviewRepository extends JpaRepository<Interview, Long> {
            "AND (:interviewer IS NULL OR LOWER(i.interviewerName) LIKE LOWER(CONCAT('%', :interviewer, '%'))) " +
            "AND (:status IS NULL OR i.interviewStatus = :status) " +
            "AND (:profile IS NULL OR i.candidateProfile = :profile)")
+    @EntityGraph(attributePaths = {"interviewer"})
     Page<Interview> findWithFilters(@Param("search") String search,
                                     @Param("date") LocalDate date,
                                     @Param("interviewer") String interviewer,
