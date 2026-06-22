@@ -99,12 +99,13 @@ export default function CalendarPage() {
           {days.map((day) => {
             const dayKey = format(day, 'yyyy-MM-dd');
             const dayInterviews = interviewsByDay.get(dayKey) ?? [];
+            const weekMd = view === 'week' ? Math.floor(12 / 7) : undefined;
             return (
               <Grid
                 item
                 xs={12}
-                sm={view === 'month' ? 4 : 12}
-                md={view === 'day' ? 12 : view === 'week' ? 12 / 7 : 4}
+                sm={view === 'month' ? 4 : view === 'week' ? 6 : 12}
+                md={view === 'day' ? 12 : view === 'week' ? weekMd : 4}
                 key={dayKey}
               >
                 <Card variant="outlined" sx={{ minHeight: 120 }}>

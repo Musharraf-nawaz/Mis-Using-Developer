@@ -75,36 +75,36 @@ export default function DashboardPage() {
           : 'Your assigned projects, assets, and upcoming interviews'}
       </Typography>
 
-      {isAdmin && dashboard.projectStats && (
+      {isAdmin && (
         <>
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
             PROJECT METRICS
           </Typography>
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard title="Total Projects" value={dashboard.projectStats.totalProjects} icon={<Folder />} />
+            <Grid item xs={12} sm={6} md={4} lg={3}>
+              <StatCard title="Total Projects" value={dashboard.projectStats?.totalProjects ?? 0} icon={<Folder />} />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard title="Active Projects" value={dashboard.projectStats.activeProjects} icon={<Work />} color="#2E7D32" />
+            <Grid item xs={12} sm={6} md={4} lg={3}>
+              <StatCard title="Active Projects" value={dashboard.projectStats?.activeProjects ?? 0} icon={<Work />} color="#2E7D32" />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={4} lg={3}>
               <StatCard
                 title="Total Budget"
-                value={`$${Number(dashboard.projectStats.totalBudget || 0).toLocaleString()}`}
+                value={`$${Number(dashboard.projectStats?.totalBudget || 0).toLocaleString()}`}
                 icon={<AttachMoney />}
                 color="#00838F"
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard title="Working Candidates" value={dashboard.projectStats.workingCandidates} icon={<People />} />
+            <Grid item xs={12} sm={6} md={4} lg={3}>
+              <StatCard title="Working Candidates" value={dashboard.projectStats?.workingCandidates ?? 0} icon={<People />} />
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <StatCard title="Interview Candidates" value={dashboard.projectStats.interviewCandidates} icon={<Event />} />
+            <Grid item xs={12} sm={6} md={4} lg={3}>
+              <StatCard title="Interview Candidates" value={dashboard.projectStats?.interviewCandidates ?? 0} icon={<Event />} />
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <StatCard title="Onboarded Candidates" value={dashboard.projectStats.onboardedCandidates} icon={<CheckCircle />} color="#2E7D32" />
+            <Grid item xs={12} sm={6} md={4} lg={3}>
+              <StatCard title="Onboarded Candidates" value={dashboard.projectStats?.onboardedCandidates ?? 0} icon={<CheckCircle />} color="#2E7D32" />
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid item xs={12} sm={6} md={4} lg={3}>
               <StatCard title="Scheduled Interviews" value={interviewStats.scheduledInterviews} icon={<Schedule />} color="#F57C00" />
             </Grid>
           </Grid>
@@ -117,26 +117,26 @@ export default function DashboardPage() {
             MY OVERVIEW
           </Typography>
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={4} lg={2}>
               <StatCard title="Assigned Projects" value={dashboard.userStats.assignedProjects} icon={<Folder />} />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={4} lg={2}>
               <StatCard title="Working Candidates" value={dashboard.userStats.workingCandidates} icon={<People />} />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={4} lg={2}>
               <StatCard title="Onboarded" value={dashboard.userStats.onboardedCandidates} icon={<CheckCircle />} color="#2E7D32" />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={4} lg={2}>
               <StatCard title="Assigned Assets" value={dashboard.userStats.assignedAssets} icon={<Assignment />} color="#F57C00" />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={4} lg={2}>
               <StatCard title="Upcoming Interviews" value={dashboard.userStats.upcomingInterviews} icon={<Schedule />} color="#00838F" />
             </Grid>
           </Grid>
         </>
       )}
 
-      {!isAdmin && dashboard.assignedProjects.length > 0 && (
+      {!isAdmin && (dashboard.assignedProjects?.length ?? 0) > 0 && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="subtitle1" fontWeight={700} gutterBottom>
@@ -164,7 +164,7 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {!isAdmin && dashboard.assignedAssets.length > 0 && (
+      {!isAdmin && (dashboard.assignedAssets?.length ?? 0) > 0 && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="subtitle1" fontWeight={700} gutterBottom>
@@ -219,13 +219,13 @@ export default function DashboardPage() {
           <Typography variant="subtitle1" fontWeight={700} gutterBottom>
             Upcoming Interviews
           </Typography>
-          {dashboard.upcomingInterviews.length === 0 ? (
+          {(dashboard.upcomingInterviews?.length ?? 0) === 0 ? (
             <Typography variant="body2" color="text.secondary">
               No upcoming interviews.
             </Typography>
           ) : (
             <List dense>
-              {dashboard.upcomingInterviews.map((item) => (
+              {(dashboard.upcomingInterviews ?? []).map((item) => (
                 <ListItem
                   key={item.id}
                   disablePadding
@@ -257,16 +257,16 @@ export default function DashboardPage() {
             ASSET METRICS
           </Typography>
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={3}>
               <StatCard title="Total Assets" value={assetStats.totalAssets} icon={<Inventory />} />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={3}>
               <StatCard title="Available" value={assetStats.availableAssets} icon={<CheckCircle />} color="#2E7D32" />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={3}>
               <StatCard title="Assigned" value={assetStats.assignedAssets} icon={<Assignment />} color="#F57C00" />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={3}>
               <StatCard title="Damaged" value={assetStats.damagedAssets} icon={<Avatar sx={{ bgcolor: 'error.main', width: 32, height: 32, fontSize: 14 }}>!</Avatar>} color="#C62828" />
             </Grid>
           </Grid>
@@ -282,10 +282,10 @@ export default function DashboardPage() {
         }
       >
         <DashboardCharts
-          assetStatusDistribution={dashboard.assetStatusDistribution}
-          assetAllocationTrends={dashboard.assetAllocationTrends}
-          recentAssignments={dashboard.recentAssignments}
-          recentReturns={dashboard.recentReturns}
+          assetStatusDistribution={dashboard.assetStatusDistribution ?? []}
+          assetAllocationTrends={dashboard.assetAllocationTrends ?? []}
+          recentAssignments={dashboard.recentAssignments ?? []}
+          recentReturns={dashboard.recentReturns ?? []}
         />
       </Suspense>
     </Box>

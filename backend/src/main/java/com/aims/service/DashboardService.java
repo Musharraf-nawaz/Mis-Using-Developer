@@ -84,20 +84,25 @@ public class DashboardService {
 
         if (isAdmin) {
             try {
-                Object[] sums = projectRepository.sumCandidateCounts();
-                long working = sums != null && sums.length > 0 && sums[0] != null ? ((Number) sums[0]).longValue() : 0;
-                long interviewCand = sums != null && sums.length > 1 && sums[1] != null ? ((Number) sums[1]).longValue() : 0;
-                long onboarded = sums != null && sums.length > 2 && sums[2] != null ? ((Number) sums[2]).longValue() : 0;
+                Object[] sums = normalizeAggregateRow(projectRepository.sumCandidateCounts());
                 projectStats = DashboardResponse.ProjectStats.builder()
                         .totalProjects(projectRepository.count())
                         .activeProjects(projectRepository.countByStatus(ProjectStatus.ACTIVE))
                         .totalBudget(projectRepository.sumBudget())
-                        .workingCandidates(working)
-                        .interviewCandidates(interviewCand)
-                        .onboardedCandidates(onboarded)
+                        .workingCandidates(aggregateAt(sums, 0))
+                        .interviewCandidates(aggregateAt(sums, 1))
+                        .onboardedCandidates(aggregateAt(sums, 2))
                         .build();
             } catch (Exception ex) {
                 log.warn("Failed to load admin project stats: {}", ex.getMessage());
+                projectStats = DashboardResponse.ProjectStats.builder()
+                        .totalProjects(0)
+                        .activeProjects(0)
+                        .totalBudget(java.math.BigDecimal.ZERO)
+                        .workingCandidates(0)
+                        .interviewCandidates(0)
+                        .onboardedCandidates(0)
+                        .build();
             }
         } else if (current != null) {
             try {

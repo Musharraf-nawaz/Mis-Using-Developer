@@ -15,7 +15,7 @@ export default function DashboardSkeleton() {
       </Card>
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {[1, 2, 3, 4, 5].map((i) => (
-          <Grid item xs={12} sm={6} md={2.4} key={i}>
+          <Grid item xs={12} sm={6} md={4} lg={2} key={i}>
             <Skeleton variant="rounded" height={96} />
           </Grid>
         ))}

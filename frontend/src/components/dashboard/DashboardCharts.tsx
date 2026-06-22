@@ -19,12 +19,12 @@ function DashboardCharts({
   recentReturns,
 }: DashboardChartsProps) {
   const pieData = useMemo(
-    () => assetStatusDistribution.map((d) => ({ name: d.status, value: Number(d.count) })),
+    () => (assetStatusDistribution ?? []).map((d) => ({ name: d.status, value: Number(d.count) })),
     [assetStatusDistribution]
   );
 
   const barData = useMemo(
-    () => assetAllocationTrends.map((d) => ({ month: d.month, assignments: Number(d.count) })),
+    () => (assetAllocationTrends ?? []).map((d) => ({ month: d.month, assignments: Number(d.count) })),
     [assetAllocationTrends]
   );
 
@@ -37,15 +37,21 @@ function DashboardCharts({
               Asset Status Distribution
             </Typography>
             <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
+              {pieData.length > 0 ? (
+                <PieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              ) : (
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ pt: 10 }}>
+                  No asset data yet
+                </Typography>
+              )}
             </ResponsiveContainer>
           </CardContent>
         </Card>

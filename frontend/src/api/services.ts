@@ -14,7 +14,9 @@ import type {
   User,
 } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? 'https://mis-using-developer.onrender.com/api' : '/api');
 
 export const fileUrl = (path?: string | null) => {
   if (!path) return '';
