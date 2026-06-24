@@ -349,4 +349,33 @@ public class DashboardService {
                 .today(isToday)
                 .build();
     }
+
+    /** JPA multi-column aggregates may return Object[]{a,b,c} or a single nested row. */
+    private Object[] normalizeAggregateRow(Object raw) {
+        if (raw == null) {
+            return new Object[]{0L, 0L, 0L};
+        }
+        if (raw instanceof Object[] row) {
+            if (row.length == 1 && row[0] instanceof Object[] nested) {
+                return nested;
+            }
+            return row;
+        }
+        return new Object[]{0L, 0L, 0L};
+    }
+
+    private long aggregateAt(Object[] row, int index) {
+        if (row == null || index < 0 || index >= row.length || row[index] == null) {
+            return 0L;
+        }
+        Object value = row[index];
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException ex) {
+            return 0L;
+        }
+    }
 }
