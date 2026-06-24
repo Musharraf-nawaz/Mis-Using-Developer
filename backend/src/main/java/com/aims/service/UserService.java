@@ -45,7 +45,8 @@ public class UserService {
                 .fullName(request.getFullName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(
-                        request.getPassword() != null ? request.getPassword() : "Employee@123"))
+                        request.getPassword() != null && !request.getPassword().isBlank()
+                                ? request.getPassword() : "Employee@123"))
                 .role(request.getRole())
                 .department(request.getDepartment())
                 .phone(request.getPhone())

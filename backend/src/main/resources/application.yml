@@ -24,6 +24,10 @@ spring:
         default_batch_fetch_size: 16
     open-in-view: false
 
+  jackson:
+    deserialization:
+      accept-empty-string-as-null-object: true
+
   cache:
     type: caffeine
 

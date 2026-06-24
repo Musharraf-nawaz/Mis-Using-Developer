@@ -70,6 +70,7 @@ public class AssetService {
 
     @Transactional
     public AssetResponse create(AssetRequest request) {
+        normalizeOptionalFields(request);
         if (request.getSerialNumber() != null && assetRepository.existsBySerialNumber(request.getSerialNumber())) {
             throw new BadRequestException("Serial number already exists");
         }
@@ -85,6 +86,7 @@ public class AssetService {
 
     @Transactional
     public AssetResponse update(Long id, AssetRequest request) {
+        normalizeOptionalFields(request);
         Asset asset = findAsset(id);
         asset = mapToEntity(asset, request);
         asset = assetRepository.save(asset);
@@ -229,5 +231,14 @@ public class AssetService {
         asset.setCondition(request.getCondition());
         asset.setRemarks(request.getRemarks());
         return asset;
+    }
+
+    private void normalizeOptionalFields(AssetRequest request) {
+        if (request.getSerialNumber() != null && request.getSerialNumber().isBlank()) {
+            request.setSerialNumber(null);
+        }
+        if (request.getAssetTag() != null && request.getAssetTag().isBlank()) {
+            request.setAssetTag(null);
+        }
     }
 }

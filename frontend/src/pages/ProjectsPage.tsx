@@ -22,6 +22,7 @@ import { projectApi, userApi } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import DataTable, { Column } from '../components/common/DataTable';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { extractApiError, sanitizeFormPayload, toNumber } from '../utils/apiErrors';
 import type { Project, ProjectStatus, User } from '../types';
 
 const STATUS_COLORS: Record<ProjectStatus, 'success' | 'primary' | 'warning' | 'error'> = {
@@ -30,6 +31,24 @@ const STATUS_COLORS: Record<ProjectStatus, 'success' | 'primary' | 'warning' | '
   ON_HOLD: 'warning',
   CANCELLED: 'error',
 };
+
+function buildProjectPayload(form: Partial<Project>) {
+  const cleaned = sanitizeFormPayload(form as Record<string, unknown>);
+  return {
+    projectName: String(cleaned.projectName || '').trim(),
+    clientName: String(cleaned.clientName || '').trim(),
+    midClientName: cleaned.midClientName as string | undefined,
+    status: (cleaned.status as ProjectStatus) || 'ACTIVE',
+    candidateWorkingCount: toNumber(cleaned.candidateWorkingCount) ?? 0,
+    interviewCandidateCount: toNumber(cleaned.interviewCandidateCount) ?? 0,
+    onboardedCandidateCount: toNumber(cleaned.onboardedCandidateCount) ?? 0,
+    startDate: cleaned.startDate as string | undefined,
+    endDate: cleaned.endDate as string | undefined,
+    budget: toNumber(cleaned.budget),
+    remarks: cleaned.remarks as string | undefined,
+    assignedUserIds: (cleaned.assignedUserIds as number[] | undefined) ?? [],
+  };
+}
 
 export default function ProjectsPage() {
   const { hasRole } = useAuth();
@@ -64,8 +83,10 @@ export default function ProjectsPage() {
   const total = data?.data?.data?.totalElements ?? 0;
 
   const saveMutation = useMutation({
-    mutationFn: (form: Partial<Project>) =>
-      editProject ? projectApi.update(editProject.id, form) : projectApi.create(form),
+    mutationFn: (form: Partial<Project>) => {
+      const payload = buildProjectPayload(form);
+      return editProject ? projectApi.update(editProject.id, payload) : projectApi.create(payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -74,7 +95,7 @@ export default function ProjectsPage() {
       setEditProject(null);
       reset();
     },
-    onError: () => toast.error('Operation failed'),
+    onError: (error) => toast.error(extractApiError(error, 'Operation failed')),
   });
 
   const deleteMutation = useMutation({
@@ -83,6 +104,7 @@ export default function ProjectsPage() {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success('Project deleted');
     },
+    onError: (error) => toast.error(extractApiError(error, 'Failed to delete project')),
   });
 
   const openCreate = () => {
@@ -179,7 +201,13 @@ export default function ProjectsPage() {
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>{editProject ? 'Edit Project' : 'New Project'}</DialogTitle>
-        <form onSubmit={handleSubmit((form) => saveMutation.mutate(form))}>
+        <form onSubmit={handleSubmit((form) => {
+          if (!form.projectName?.trim() || !form.clientName?.trim()) {
+            toast.error('Project name and client name are required');
+            return;
+          }
+          saveMutation.mutate(form);
+        })}>
           <DialogContent>
             <Grid container spacing={2} sx={{ mt: 0.5 }}>
               <Grid item xs={12} sm={6}>
@@ -192,7 +220,7 @@ export default function ProjectsPage() {
                 <TextField fullWidth label="Mid Client Name" {...register('midClientName')} />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField fullWidth select label="Status" defaultValue="ACTIVE" {...register('status')}>
+                <TextField fullWidth select label="Status" {...register('status')} defaultValue="ACTIVE">
                   {(['ACTIVE', 'COMPLETED', 'ON_HOLD', 'CANCELLED'] as ProjectStatus[]).map((s) => (
                     <MenuItem key={s} value={s}>{s}</MenuItem>
                   ))}

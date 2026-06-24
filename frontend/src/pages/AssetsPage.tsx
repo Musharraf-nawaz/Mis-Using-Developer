@@ -24,6 +24,7 @@ import { assetApi, fileUrl } from '../api/services';
 import { useAuth } from '../context/AuthContext';
 import DataTable, { Column } from '../components/common/DataTable';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { extractApiError, sanitizeFormPayload } from '../utils/apiErrors';
 import type { Asset, AssetStatus } from '../types';
 import type { ApiResponse, PageResponse } from '../types';
 
@@ -34,6 +35,24 @@ const STATUS_COLORS: Record<AssetStatus, 'success' | 'warning' | 'info' | 'error
   DAMAGED: 'error',
   LOST: 'default',
 };
+
+function buildAssetPayload(form: Partial<Asset>) {
+  const cleaned = sanitizeFormPayload(form as Record<string, unknown>);
+  return {
+    companyName: String(cleaned.companyName || '').trim(),
+    assetName: String(cleaned.assetName || '').trim(),
+    associatedDeveloper: cleaned.associatedDeveloper as string | undefined,
+    projectName: cleaned.projectName as string | undefined,
+    serialNumber: cleaned.serialNumber as string | undefined,
+    vendorName: cleaned.vendorName as string | undefined,
+    assignedDate: cleaned.assignedDate as string | undefined,
+    warrantyExpiryDate: cleaned.warrantyExpiryDate as string | undefined,
+    remarks: cleaned.remarks as string | undefined,
+    assetCategory: (cleaned.assetCategory as string) || 'GENERAL',
+    assetType: (cleaned.assetType as string) || 'IT_ASSET',
+    projectOffboarded: Boolean(cleaned.projectOffboarded),
+  };
+}
 
 export default function AssetsPage() {
   const { hasRole } = useAuth();
@@ -65,10 +84,15 @@ export default function AssetsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (form: Partial<Asset>) => {
-      const res = editAsset ? await assetApi.update(editAsset.id, form) : await assetApi.create(form);
+      const payload = buildAssetPayload(form);
+      const res = editAsset ? await assetApi.update(editAsset.id, payload) : await assetApi.create(payload);
       const assetId = res.data.data.id;
-      if (photoFile) await assetApi.uploadMedia(assetId, photoFile, 'PHOTO');
-      if (videoFile) await assetApi.uploadMedia(assetId, videoFile, 'VIDEO');
+      try {
+        if (photoFile) await assetApi.uploadMedia(assetId, photoFile, 'PHOTO');
+        if (videoFile) await assetApi.uploadMedia(assetId, videoFile, 'VIDEO');
+      } catch {
+        toast.warn('Asset saved but media upload failed. You can retry upload by editing the asset.');
+      }
       return res;
     },
     onSuccess: () => {
@@ -80,7 +104,7 @@ export default function AssetsPage() {
       setVideoFile(null);
       reset();
     },
-    onError: () => toast.error('Operation failed'),
+    onError: (error) => toast.error(extractApiError(error, 'Operation failed')),
   });
 
   const deleteMutation = useMutation({
@@ -261,18 +285,20 @@ export default function AssetsPage() {
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>{editAsset ? 'Edit Asset' : 'Add Asset'}</DialogTitle>
-        <form onSubmit={handleSubmit((d) => saveMutation.mutate({
-          ...d,
-          assetCategory: d.assetCategory || 'GENERAL',
-          assetType: d.assetType || 'IT_ASSET',
-        }))}>
+        <form onSubmit={handleSubmit((d) => {
+          if (!d.companyName?.trim() || !d.assetName?.trim()) {
+            toast.error('Company name and asset name are required');
+            return;
+          }
+          saveMutation.mutate(d);
+        })}>
           <DialogContent>
             <Grid container spacing={2} sx={{ mt: 0.5 }}>
               <Grid item xs={12} sm={6}>
-                <TextField fullWidth label="Company Name" {...register('companyName')} />
+                <TextField fullWidth label="Company Name" required {...register('companyName', { required: true })} />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField fullWidth label="Asset Name" {...register('assetName')} />
+                <TextField fullWidth label="Asset Name" required {...register('assetName', { required: true })} />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField fullWidth label="Associated Developer" {...register('associatedDeveloper')} />

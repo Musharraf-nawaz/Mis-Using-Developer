@@ -15,11 +15,32 @@ import {
   Chip,
 } from '@mui/material';
 import { Add, Edit, Block, CheckCircle } from '@mui/icons-material';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { userApi } from '../api/services';
 import DataTable, { Column } from '../components/common/DataTable';
+import { extractApiError, sanitizeFormPayload } from '../utils/apiErrors';
 import type { User, Role } from '../types';
+
+type UserForm = {
+  fullName: string;
+  email: string;
+  password?: string;
+  role: Role;
+  department?: string;
+  employeeId?: string;
+  phone?: string;
+};
+
+const defaultForm: UserForm = {
+  fullName: '',
+  email: '',
+  password: '',
+  role: 'USER',
+  department: '',
+  employeeId: '',
+  phone: '',
+};
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
@@ -27,7 +48,7 @@ export default function UsersPage() {
   const [size, setSize] = useState(10);
   const [open, setOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
-  const { register, handleSubmit, reset } = useForm<Partial<User> & { password?: string }>();
+  const { register, handleSubmit, reset, control } = useForm<UserForm>({ defaultValues: defaultForm });
 
   const { data, isLoading } = useQuery({
     queryKey: ['users', page, size],
@@ -38,14 +59,16 @@ export default function UsersPage() {
   const total = data?.data?.data?.totalElements ?? 0;
 
   const saveMutation = useMutation({
-    mutationFn: (form: Partial<User> & { password?: string }) =>
+    mutationFn: (form: UserForm) =>
       editUser ? userApi.update(editUser.id, form) : userApi.create(form),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success(editUser ? 'User updated' : 'User created');
       setOpen(false);
-      reset();
+      setEditUser(null);
+      reset(defaultForm);
     },
+    onError: (error) => toast.error(extractApiError(error, 'Failed to save user')),
   });
 
   const toggleStatus = useMutation({
@@ -55,7 +78,44 @@ export default function UsersPage() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Status updated');
     },
+    onError: (error) => toast.error(extractApiError(error, 'Failed to update status')),
   });
+
+  const openCreate = () => {
+    setEditUser(null);
+    reset(defaultForm);
+    setOpen(true);
+  };
+
+  const openEdit = (user: User) => {
+    setEditUser(user);
+    reset({
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      department: user.department || '',
+      employeeId: user.employeeId || '',
+      phone: user.phone || '',
+    });
+    setOpen(true);
+  };
+
+  const onSubmit = (form: UserForm) => {
+    if (!editUser && !form.password?.trim()) {
+      toast.error('Password is required for new users');
+      return;
+    }
+    const payload = sanitizeFormPayload({
+      fullName: form.fullName.trim(),
+      email: form.email.trim(),
+      role: form.role,
+      department: form.department?.trim(),
+      employeeId: form.employeeId?.trim(),
+      phone: form.phone?.trim(),
+      ...(form.password?.trim() ? { password: form.password.trim() } : {}),
+    });
+    saveMutation.mutate(payload as UserForm);
+  };
 
   const columns: Column<User>[] = [
     { id: 'employeeId', label: 'Employee ID' },
@@ -75,7 +135,7 @@ export default function UsersPage() {
       label: 'Actions',
       render: (row) => (
         <Box>
-          <IconButton size="small" onClick={() => { setEditUser(row); setOpen(true); }}>
+          <IconButton size="small" onClick={() => openEdit(row)}>
             <Edit fontSize="small" />
           </IconButton>
           <IconButton
@@ -97,7 +157,7 @@ export default function UsersPage() {
           <Typography variant="h5" fontWeight={700}>User Management</Typography>
           <Typography variant="body2" color="text.secondary">Manage system users and roles</Typography>
         </Box>
-        <Button startIcon={<Add />} variant="contained" onClick={() => { setEditUser(null); reset(); setOpen(true); }}>
+        <Button startIcon={<Add />} variant="contained" onClick={openCreate}>
           Add User
         </Button>
       </Box>
@@ -107,18 +167,33 @@ export default function UsersPage() {
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editUser ? 'Edit User' : 'Add User'}</DialogTitle>
-        <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <DialogContent>
             <Grid container spacing={2} sx={{ mt: 0.5 }}>
-              <Grid item xs={12}><TextField fullWidth label="Full Name" {...register('fullName', { required: true })} /></Grid>
-              <Grid item xs={12}><TextField fullWidth label="Email" {...register('email', { required: true })} /></Grid>
-              {!editUser && <Grid item xs={12}><TextField fullWidth label="Password" type="password" {...register('password')} /></Grid>}
               <Grid item xs={12}>
-                <TextField fullWidth select label="Role" defaultValue="USER" {...register('role')}>
-                  {(['ADMIN', 'USER'] as Role[]).map((r) => (
-                    <MenuItem key={r} value={r}>{r}</MenuItem>
-                  ))}
-                </TextField>
+                <TextField fullWidth label="Full Name" required {...register('fullName', { required: true })} />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField fullWidth label="Email" type="email" required {...register('email', { required: true })} />
+              </Grid>
+              {!editUser && (
+                <Grid item xs={12}>
+                  <TextField fullWidth label="Password" type="password" required {...register('password', { required: true })} />
+                </Grid>
+              )}
+              <Grid item xs={12}>
+                <Controller
+                  name="role"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <TextField fullWidth select label="Role" required {...field}>
+                      {(['ADMIN', 'USER'] as Role[]).map((r) => (
+                        <MenuItem key={r} value={r}>{r}</MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
               </Grid>
               <Grid item xs={12}><TextField fullWidth label="Department" {...register('department')} /></Grid>
               <Grid item xs={12}><TextField fullWidth label="Employee ID" {...register('employeeId')} /></Grid>
@@ -127,7 +202,9 @@ export default function UsersPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained">Save</Button>
+            <Button type="submit" variant="contained" disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
           </DialogActions>
         </form>
       </Dialog>
