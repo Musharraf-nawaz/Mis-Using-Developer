@@ -25,7 +25,11 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode; roles?
 };
 
 function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, authReady } = useAuth();
+
+  if (!authReady) {
+    return <PageLoader />;
+  }
 
   return (
     <Suspense fallback={<PageLoader />}>

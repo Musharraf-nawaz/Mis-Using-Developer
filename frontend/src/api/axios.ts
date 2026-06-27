@@ -1,4 +1,11 @@
 import axios from 'axios';
+import {
+  clearAuthStorage,
+  getAccessToken,
+  getRefreshToken,
+  setAuthSession,
+} from '../utils/authStorage';
+import type { AuthResponse } from '../types';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
@@ -11,7 +18,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
+  const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -24,18 +31,18 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      const refreshToken = localStorage.getItem('refreshToken');
+      const refreshToken = getRefreshToken();
       if (refreshToken) {
         try {
           const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
           if (data.success) {
-            localStorage.setItem('accessToken', data.data.accessToken);
-            localStorage.setItem('refreshToken', data.data.refreshToken);
-            originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`;
+            const auth = data.data as AuthResponse;
+            setAuthSession(auth);
+            originalRequest.headers.Authorization = `Bearer ${auth.accessToken}`;
             return api(originalRequest);
           }
         } catch {
-          localStorage.clear();
+          clearAuthStorage();
           window.location.href = '/login';
         }
       }

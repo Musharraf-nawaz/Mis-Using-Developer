@@ -1,10 +1,18 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { AuthResponse, Role } from '../types';
 import { authApi } from '../api/services';
+import {
+  clearAuthStorage,
+  clearLegacyLocalAuth,
+  getRefreshToken,
+  getStoredUser,
+  setAuthSession,
+} from '../utils/authStorage';
 
 interface AuthContextType {
   user: AuthResponse | null;
   isAuthenticated: boolean;
+  authReady: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   hasRole: (...roles: Role[]) => boolean;
@@ -13,28 +21,25 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthResponse | null>(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [user, setUser] = useState<AuthResponse | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) setUser(null);
+    clearLegacyLocalAuth();
+    setUser(getStoredUser());
+    setAuthReady(true);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const { data } = await authApi.login(email, password);
     if (!data.success) throw new Error(data.message || 'Login failed');
     const auth = data.data;
-    localStorage.setItem('accessToken', auth.accessToken);
-    localStorage.setItem('refreshToken', auth.refreshToken);
-    localStorage.setItem('user', JSON.stringify(auth));
+    setAuthSession(auth);
     setUser(auth);
   }, []);
 
   const logout = useCallback(async () => {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = getRefreshToken();
     if (refreshToken) {
       try {
         await authApi.logout(refreshToken);
@@ -42,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         /* ignore */
       }
     }
-    localStorage.clear();
+    clearAuthStorage();
     setUser(null);
   }, []);
 
@@ -53,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, login, logout, hasRole }}
+      value={{ user, isAuthenticated: !!user, authReady, login, logout, hasRole }}
     >
       {children}
     </AuthContext.Provider>
