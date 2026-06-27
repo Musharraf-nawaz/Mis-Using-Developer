@@ -33,9 +33,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
-    defaultValues: { email: 'admin@aims.com', password: 'Admin@123' },
-  });
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
@@ -118,10 +116,6 @@ export default function LoginPage() {
               {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
             </Button>
           </form>
-
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 3, textAlign: 'center' }}>
-            Demo: admin@aims.com / Admin@123
-          </Typography>
         </CardContent>
       </Card>
     </Box>

@@ -98,8 +98,14 @@ function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/"
+          element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
+        />
+        <Route
+          path="*"
+          element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
+        />
       </Routes>
     </Suspense>
   );
